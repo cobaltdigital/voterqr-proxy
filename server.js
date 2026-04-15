@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
-const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
 
@@ -89,25 +88,22 @@ function ezBasicAuth(username, password) {
   return 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
 }
 
-// Download QR image from QR service → upload as real PNG file to EZTexting
+// Download QR image from QR service → upload as raw PNG binary to EZTexting
 async function uploadMedia(username, password, imageUrl) {
   // Download the QR image as a buffer
   const imgRes = await fetch(imageUrl);
   if (!imgRes.ok) return { success: false, error: 'Failed to download QR image: ' + imgRes.status };
   const imgBuffer = await imgRes.buffer();
 
-  // Upload to EZTexting as multipart/form-data with explicit image/png type
-  const form = new FormData();
-  form.append('file', imgBuffer, { filename: 'qr.png', contentType: 'image/png' });
-
+  // Upload raw PNG bytes with Content-Type: image/png
   const res = await fetch('https://a.eztexting.com/v1/media-files', {
     method: 'POST',
     headers: {
       'Authorization': ezBasicAuth(username, password),
-      'Accept': 'application/json',
-      ...form.getHeaders()
+      'Content-Type': 'image/png',
+      'Accept': 'application/json'
     },
-    body: form
+    body: imgBuffer
   });
 
   const data = await res.json().catch(() => ({}));

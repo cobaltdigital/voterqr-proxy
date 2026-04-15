@@ -386,7 +386,7 @@ async function doSend(){
     var v=targets[i];
     var text=msg.replace(/{first_name}/g,v.firstName).replace(/{last_name}/g,v.lastName).replace(/{event_name}/g,DATA.settings.eventName);
     var payload={username:user,password:pass,phone:v.phone,message:text};
-    if(mode==='mms')payload.qrImageUrl=qrUrl(v.id,400);
+    if(mode==='mms'){payload.voterId=v.id;payload.serverUrl=window.location.origin;}
     try{
       var r=await fetch('/'+( mode==='mms'?'send-mms':'send-sms'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       var d=await r.json();

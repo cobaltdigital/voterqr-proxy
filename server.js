@@ -24,6 +24,25 @@ function uid() { return (Date.now().toString(36) + Math.random().toString(36).su
 // ── Health ────────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'VoterQR running', voters: DB.voters.length }));
 
+// ── QR Image proxy ────────────────────────────────────────────────────────────
+// Serves QR codes with clean Content-Type: image/png (no charset)
+// EZTexting fetches this URL when sending MMS
+app.get('/qr/:id', async (req, res) => {
+  try {
+    const baseUrl = DB.settings.checkinUrl || `https://${req.headers.host}`;
+    const data = encodeURIComponent(`${baseUrl}/checkin?voter=${req.params.id}`);
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&format=png&data=${data}`;
+    const imgRes = await fetch(qrApiUrl);
+    if (!imgRes.ok) return res.status(502).send('QR generation failed');
+    const buffer = await imgRes.buffer();
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.send(buffer);
+  } catch(e) {
+    res.status(500).send('Error: ' + e.message);
+  }
+});
+
 // ── Voters ────────────────────────────────────────────────────────────────────
 app.get('/api/voters', (req, res) => res.json(DB.voters));
 app.post('/api/voters', (req, res) => {
@@ -83,71 +102,49 @@ app.put('/api/settings', (req, res) => {
   DB.settings = { ...DB.settings, ...req.body }; saveDB(); res.json(DB.settings);
 });
 
-// ── EZTexting NEW API (a.eztexting.com/v1) ────────────────────────────────────
+// ── EZTexting NEW API ─────────────────────────────────────────────────────────
 function ezBasicAuth(username, password) {
   return 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
 }
 
-// Download QR image from QR service → upload as raw PNG binary to EZTexting
-async function uploadMedia(username, password, imageUrl) {
-  // Download the QR image as a buffer
-  const imgRes = await fetch(imageUrl);
-  if (!imgRes.ok) return { success: false, error: 'Failed to download QR image: ' + imgRes.status };
-  const imgBuffer = await imgRes.buffer();
-
-  // Upload raw PNG bytes with Content-Type: image/png
-  const res = await fetch('https://a.eztexting.com/v1/media-files', {
-    method: 'POST',
-    headers: {
-      'Authorization': ezBasicAuth(username, password),
-      'Content-Type': 'image/png',
-      'Accept': 'application/json'
-    },
-    body: imgBuffer
-  });
-
-  const data = await res.json().catch(() => ({}));
-  console.log('Media upload response:', res.status, JSON.stringify(data));
-
-  // EZTexting may return id, mediaFileId, or Id depending on version
-  const id = data.id || data.mediaFileId || data.Id || (data.data && data.data.id);
-  if (res.ok && id) return { success: true, id };
-  return { success: false, error: JSON.stringify(data) };
-}
-
-// Send message via new API
-async function sendMessage(username, password, phone, message, mediaFileId) {
-  const cleanPhone = phone.replace(/\D/g, '').replace(/^1/, '');
-  const body = { phoneNumbers: [cleanPhone], message };
-  if (mediaFileId) body.mediaFileId = mediaFileId;
-
-  const res = await fetch('https://a.eztexting.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Authorization': ezBasicAuth(username, password),
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
-
-  const data = await res.json().catch(() => ({}));
-  console.log('Send message response:', res.status, JSON.stringify(data));
-  return { success: res.ok, status: res.status, data };
-}
-
 // POST /send-mms
+// Instead of uploading to EZTexting media library (which has content-type issues),
+// we pass our own /qr/:id URL as mediaUrl directly in the message.
+// EZTexting fetches it from our server which returns clean image/png.
 app.post('/send-mms', async (req, res) => {
-  const { username, password, phone, message, qrImageUrl } = req.body;
-  if (!username || !password || !phone || !message || !qrImageUrl)
+  const { username, password, phone, message, voterId, serverUrl } = req.body;
+  if (!username || !password || !phone || !message || !voterId)
     return res.status(400).json({ success: false, error: 'Missing required fields' });
+
   try {
-    const upload = await uploadMedia(username, password, qrImageUrl);
-    if (!upload.success)
-      return res.status(400).json({ success: false, error: 'Image upload failed: ' + upload.error });
-    const send = await sendMessage(username, password, phone, message, upload.id);
-    if (!send.success)
-      return res.status(400).json({ success: false, error: JSON.stringify(send.data) });
+    const cleanPhone = phone.replace(/\D/g, '').replace(/^1/, '');
+    const base = serverUrl || DB.settings.checkinUrl || `https://voterqr-proxy-production.up.railway.app`;
+    const mediaUrl = `${base}/qr/${voterId}`;
+
+    const body = {
+      phoneNumbers: [cleanPhone],
+      message: message,
+      mediaUrl: mediaUrl
+    };
+
+    console.log('Sending MMS to', cleanPhone, 'with mediaUrl:', mediaUrl);
+
+    const sendRes = await fetch('https://a.eztexting.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Authorization': ezBasicAuth(username, password),
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await sendRes.json().catch(() => ({}));
+    console.log('Send response:', sendRes.status, JSON.stringify(data));
+
+    if (!sendRes.ok)
+      return res.status(400).json({ success: false, error: JSON.stringify(data) });
+
     return res.json({ success: true });
   } catch(err) {
     console.error('send-mms error:', err);
@@ -161,9 +158,19 @@ app.post('/send-sms', async (req, res) => {
   if (!username || !password || !phone || !message)
     return res.status(400).json({ success: false, error: 'Missing fields' });
   try {
-    const send = await sendMessage(username, password, phone, message, null);
-    if (!send.success)
-      return res.status(400).json({ success: false, error: JSON.stringify(send.data) });
+    const cleanPhone = phone.replace(/\D/g, '').replace(/^1/, '');
+    const sendRes = await fetch('https://a.eztexting.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Authorization': ezBasicAuth(username, password),
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ phoneNumbers: [cleanPhone], message })
+    });
+    const data = await sendRes.json().catch(() => ({}));
+    if (!sendRes.ok)
+      return res.status(400).json({ success: false, error: JSON.stringify(data) });
     return res.json({ success: true });
   } catch(err) {
     return res.status(500).json({ success: false, error: err.message });

@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoterQR — Campaign Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f2f1ec;--surface:#fff;--surface2:#f8f7f3;--border:#e4e2d9;
+  --text:#1a1916;--text2:#6b6860;--text3:#aaa89f;
+  --blue:#2563eb;--blue-bg:#eff4ff;--blue-b:#bfcffc;
+  --green:#16a34a;--green-bg:#f0fdf4;--green-b:#bbf7d0;
+  --amber:#d97706;--amber-bg:#fffbeb;--amber-b:#fde68a;
+  --red:#dc2626;--red-bg:#fef2f2;--red-b:#fecaca;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;--purple-b:#ddd6fe;
+  --r:10px;--rsm:6px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;height:100vh;overflow:hidden}
+.shell{display:flex;height:100vh}
+/* Sidebar */
+.sb{width:56px;background:#1a1916;display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:4px;flex-shrink:0}
+.sb-logo{width:32px;height:32px;background:#2563eb;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px}
+.nb{width:38px;height:38px;border-radius:8px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;transition:background 0.15s;position:relative;color:#fff}
+.nb:hover{background:rgba(255,255,255,0.1)}
+.nb.on{background:rgba(255,255,255,0.16)}
+.nb .tip{position:absolute;left:46px;background:#1a1916;color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:200;border:1px solid rgba(255,255,255,0.1)}
+.nb:hover .tip{opacity:1}
+.sb-sep{width:30px;height:1px;background:rgba(255,255,255,0.1);margin:4px 0}
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 18px;height:50px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.pg-title{font-size:15px;font-weight:600}
+.pg-sub{font-size:11px;color:var(--text2);margin-top:1px}
+.top-stats{display:flex;gap:20px}
+.ts{text-align:right}
+.ts-n{font-size:17px;font-weight:600;line-height:1}
+.ts-l{font-size:10px;color:var(--text2)}
+.page{flex:1;overflow-y:auto;padding:18px}
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:15px;margin-bottom:12px}
+.card-hd{font-size:13px;font-weight:600;margin-bottom:12px}
+/* Forms */
+.inp{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--rsm);background:var(--surface2);color:var(--text);font-size:13px;outline:none;font-family:'DM Sans',sans-serif}
+.inp:focus{border-color:var(--blue)}
+.inp::placeholder{color:var(--text3)}
+textarea.inp{resize:vertical;min-height:70px;line-height:1.5}
+select.inp{cursor:pointer}
+.lbl{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+/* Buttons */
+.btn{padding:6px 13px;border-radius:var(--rsm);font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-weight:500;transition:all .12s;white-space:nowrap}
+.btn:hover{background:var(--bg)}
+.btn:disabled{opacity:.38;cursor:not-allowed}
+.btn-blue{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-blue:hover{opacity:.88}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-green:hover{opacity:.88}
+.btn-red{background:var(--red-bg);color:var(--red);border-color:var(--red-b)}
+.btn-amber{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-b)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
+/* Tags */
+.tag{display:inline-block;padding:1px 7px;border-radius:20px;font-size:10px;font-weight:500;font-family:'DM Mono',monospace}
+.tag-blue{background:var(--blue-bg);color:var(--blue)}
+.tag-green{background:var(--green-bg);color:var(--green)}
+.tag-amber{background:var(--amber-bg);color:var(--amber)}
+.tag-red{background:var(--red-bg);color:var(--red)}
+.tag-purple{background:var(--purple-bg);color:var(--purple)}
+.tag-gray{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+/* Table */
+.tw{border:1px solid var(--border);border-radius:var(--rsm);overflow:hidden}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{background:var(--surface2);padding:7px 10px;text-align:left;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--surface2)}
+.scroll{overflow-y:auto;max-height:320px}
+/* Stats */
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.st{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px}
+.stn{font-size:28px;font-weight:600;line-height:1}
+.stl{font-size:11px;color:var(--text2);margin-top:3px}
+.prog{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:6px}
+.pf{height:100%;border-radius:3px;transition:width .4s}
+/* Check-in */
+.ci-card{border-radius:var(--r);padding:14px 16px;display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;border:1px solid}
+.ci-ok{background:var(--green-bg);border-color:var(--green-b)}
+.ci-warn{background:var(--amber-bg);border-color:var(--amber-b)}
+.ci-err{background:var(--red-bg);border-color:var(--red-b)}
+.avatar{border-radius:50%;background:var(--blue-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:600;font-family:'DM Mono',monospace;flex-shrink:0}
+/* Follow-up */
+.fu-btn{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:none;font-family:'DM Sans',sans-serif;transition:all .12s}
+.fu-pending.act{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-b)}
+.fu-contacted.act{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-b)}
+.fu-voted.act{background:var(--green-bg);color:var(--green);border-color:var(--green-b)}
+.fu-noanswer.act{background:var(--red-bg);color:var(--red);border-color:var(--red-b)}
+.seg-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px;flex-shrink:0}
+.help{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rsm);padding:11px 13px;font-size:12px;color:var(--text2);line-height:1.7}
+code{font-family:'DM Mono',monospace;font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:3px;color:var(--blue);border:1px solid var(--border)}
+.empty{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty-t{font-size:14px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.slog{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;border-radius:var(--rsm);margin-bottom:2px;font-size:12px}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:#fff;padding:10px 18px;border-radius:var(--rsm);font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="shell" id="app">
+  <div class="sb" id="sb">
+    <div class="sb-logo">🗳</div>
+    <div class="nb on" id="nb-voters" onclick="go('voters')"><span>👥</span><span class="tip">Voters</span></div>
+    <div class="nb" id="nb-segments" onclick="go('segments')"><span>🗂</span><span class="tip">Segments</span></div>
+    <div class="sb-sep"></div>
+    <div class="nb" id="nb-send" onclick="go('send')"><span>📤</span><span class="tip">Send Texts</span></div>
+    <div class="nb" id="nb-checkin" onclick="go('checkin')"><span>✅</span><span class="tip">Check-In</span></div>
+    <div class="nb" id="nb-followup" onclick="go('followup')"><span>🗳</span><span class="tip">Early Vote Follow-Up</span></div>
+    <div class="sb-sep"></div>
+    <div class="nb" id="nb-dashboard" onclick="go('dashboard')"><span>📊</span><span class="tip">Dashboard</span></div>
+    <div class="nb" id="nb-settings" onclick="go('settings')"><span>⚙️</span><span class="tip">Settings</span></div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div><div class="pg-title" id="pg-t">Voters</div><div style="font-size:11px;color:var(--text2)" id="pg-s">Manage your voter list</div></div>
+      <div class="top-stats" id="top-stats"></div>
+    </div>
+    <div class="page" id="page"><div class="empty"><div class="spinner"></div></div></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+var CUR='voters', DATA={voters:[],segments:[],settings:{eventName:'Campaign Event 2026',checkinUrl:window.location.origin,ezUser:''}};
+var SENDING=false, SEND_LOG=[], CI_RESULT=null, EZ_PASS='';
+var PANELS={importOpen:false,addVoter:false,addSeg:false};
+var SEG_COLORS=['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#65a30d'];
+
+function toast(msg,ms){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},ms||2500)}
+function uid(){return(Date.now().toString(36)+Math.random().toString(36).substr(2,4)).toUpperCase()}
+function qrUrl(id,sz){sz=sz||300;var url=DATA.settings.checkinUrl+'/checkin?voter='+id;return'https://api.qrserver.com/v1/create-qr-code/?size='+sz+'x'+sz+'&data='+encodeURIComponent(url)}
+function initials(v){return((v.firstName||'?')[0]+(v.lastName||'?')[0]).toUpperCase()}
+function segById(id){return DATA.segments.find(function(s){return s.id===id})}
+
+// API helpers
+async function api(method,path,body){
+  var opts={method:method,headers:{'Content-Type':'application/json'}};
+  if(body)opts.body=JSON.stringify(body);
+  var res=await fetch(path,opts);
+  return res.json();
+}
+async function GET(p){return api('GET',p)}
+async function POST(p,b){return api('POST',p,b)}
+async function PUT(p,b){return api('PUT',p,b)}
+async function DEL(p){return api('DELETE',p)}
+
+async function loadAll(){
+  var [v,s,st]=await Promise.all([GET('/api/voters'),GET('/api/segments'),GET('/api/settings')]);
+  DATA.voters=v||[];DATA.segments=s||[];DATA.settings=Object.assign(DATA.settings,st||{});
+  if(!DATA.settings.checkinUrl)DATA.settings.checkinUrl=window.location.origin;
+  render();
+}
+
+function go(tab){
+  CUR=tab;
+  document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('on')});
+  var nb=document.getElementById('nb-'+tab);if(nb)nb.classList.add('on');
+  CI_RESULT=null;
+  render();
+}
+
+function renderTopStats(){
+  var t=DATA.voters.length,ci=DATA.voters.filter(function(v){return v.checkedIn}).length;
+  var voted=DATA.voters.filter(function(v){return v.followUp&&v.followUp.status==='voted'}).length;
+  return'<div class="ts"><div class="ts-n" style="color:var(--blue)">'+t+'</div><div class="ts-l">Voters</div></div>'+
+    '<div class="ts"><div class="ts-n" style="color:var(--green)">'+ci+'</div><div class="ts-l">Checked In</div></div>'+
+    '<div class="ts"><div class="ts-n" style="color:var(--purple)">'+voted+'</div><div class="ts-l">Voted</div></div>';
+}
+
+// ── VOTERS PAGE ──────────────────────────────────────────────────────────────
+function parseCSV(txt){
+  var lines=txt.trim().split('\n').filter(function(l){return l.trim()});
+  if(!lines.length)return[];
+  var first=lines[0].toLowerCase();
+  var data=(first.includes('name')||first.includes('phone')||first.includes('first'))?lines.slice(1):lines;
+  return data.map(function(line){
+    var p=line.split(',').map(function(x){return x.trim().replace(/^"|"$/g,'')});
+    if(p.length>=3)return{firstName:p[0],lastName:p[1],phone:p[2],address:p[3]||''};
+    if(p.length===2){var n=p[0].split(' ');return{firstName:n[0]||'',lastName:n.slice(1).join(' ')||'',phone:p[1],address:''};}
+    return{firstName:'',lastName:'',phone:p[0],address:''};
+  }).filter(function(v){return v.phone&&v.phone.replace(/\D/g,'').length>=10});
+}
+
+async function doImport(){
+  var txt=document.getElementById('csv-in').value;
+  var parsed=parseCSV(txt);
+  if(!parsed.length){alert('No valid rows found.\nFormat: FirstName, LastName, Phone');return;}
+  var seg=document.getElementById('import-seg').value;
+  var r=await POST('/api/voters/import',{voters:parsed,segmentId:seg||null});
+  PANELS.importOpen=false;
+  await loadAll();
+  toast('Imported '+r.added+' voters!');
+}
+
+async function doAddVoter(){
+  var fn=document.getElementById('a-fn').value.trim();
+  var ln=document.getElementById('a-ln').value.trim();
+  var ph=document.getElementById('a-ph').value.trim();
+  var seg=document.getElementById('a-seg').value;
+  if(!ph){toast('Phone required');return;}
+  await POST('/api/voters',{firstName:fn,lastName:ln,phone:ph,segments:seg?[seg]:[]});
+  document.getElementById('a-fn').value='';
+  document.getElementById('a-ln').value='';
+  document.getElementById('a-ph').value='';
+  await loadAll();
+  toast('Voter added');
+}
+
+async function doRemoveVoter(id){
+  if(!confirm('Remove this voter?'))return;
+  await DEL('/api/voters/'+id);
+  await loadAll();
+  toast('Removed');
+}
+
+async function doClearAll(){
+  if(!confirm('Delete ALL '+DATA.voters.length+' voters? This cannot be undone.'))return;
+  await DEL('/api/voters/all');
+  await loadAll();
+  toast('All voters cleared');
+}
+
+function segOpts(selectedVal){
+  var o='<option value="">No segment</option>';
+  DATA.segments.forEach(function(s){o+='<option value="'+s.id+'"'+(selectedVal===s.id?' selected':'')+'>'+s.name+'</option>';});
+  return o;
+}
+
+function voterSegTags(voter){
+  if(!voter.segments||!voter.segments.length)return'<span class="tag tag-gray">—</span>';
+  return voter.segments.map(function(sid){var s=segById(sid);if(!s)return'';return'<span class="tag" style="background:'+s.color+'22;color:'+s.color+';border:1px solid '+s.color+'44">'+s.name+'</span>';}).join(' ');
+}
+
+function fuTag(v){
+  if(!v.followUp)return'<span class="tag tag-gray">pending</span>';
+  var st=v.followUp.status||'pending';
+  var m={pending:'tag-amber',contacted:'tag-blue',voted:'tag-green',noanswer:'tag-red'};
+  var l={pending:'Pending',contacted:'Contacted',voted:'Voted ✓',noanswer:'No Answer'};
+  return'<span class="tag '+(m[st]||'tag-gray')+'">'+(l[st]||st)+'</span>';
+}
+
+function renderVoters(){
+  var search=(document.getElementById('v-s')?document.getElementById('v-s').value:'').toLowerCase();
+  var segF=(document.getElementById('v-seg')?document.getElementById('v-seg').value:'');
+  var filtered=DATA.voters.filter(function(v){
+    return(v.firstName+' '+v.lastName+' '+v.phone).toLowerCase().includes(search)&&(!segF||(v.segments||[]).includes(segF));
+  });
+  var h='<div class="row" style="margin-bottom:12px">';
+  h+='<input class="inp" id="v-s" placeholder="Search name or phone..." value="'+search+'" oninput="render()" style="flex:2;min-width:130px">';
+  h+='<select class="inp" id="v-seg" onchange="render()" style="flex:1;min-width:120px"><option value="">All segments</option>'+DATA.segments.map(function(s){return'<option value="'+s.id+'">'+s.name+'</option>'}).join('')+'</select>';
+  h+='<button class="btn btn-blue" onclick="PANELS.importOpen=!PANELS.importOpen;render()">Import CSV</button>';
+  h+='<button class="btn btn-blue" onclick="PANELS.addVoter=!PANELS.addVoter;render()">+ Add voter</button>';
+  if(DATA.voters.length)h+='<button class="btn btn-red" onclick="doClearAll()">Clear all</button>';
+  h+='</div>';
+  if(PANELS.importOpen){
+    h+='<div class="card"><div class="card-hd">Import CSV</div>';
+    h+='<div class="help" style="margin-bottom:10px">Format: <code>FirstName, LastName, Phone</code> per line. Header optional.</div>';
+    h+='<textarea class="inp" id="csv-in" style="min-height:100px;font-family:DM Mono,monospace;font-size:12px;margin-bottom:8px" placeholder="Jane,Doe,+15551234567&#10;John,Smith,+15559876543"></textarea>';
+    h+='<div class="row"><div class="lbl" style="line-height:2.4">Assign to:</div><select class="inp" id="import-seg" style="width:auto">'+segOpts('')+'</select></div>';
+    h+='<div class="row" style="margin-top:8px"><button class="btn btn-green" onclick="doImport()">Import</button><button class="btn" onclick="PANELS.importOpen=false;render()">Cancel</button></div></div>';
+  }
+  if(PANELS.addVoter){
+    h+='<div class="card"><div class="card-hd">Add voter</div><div class="row">';
+    h+='<input class="inp" id="a-fn" placeholder="First name" style="flex:1;min-width:80px">';
+    h+='<input class="inp" id="a-ln" placeholder="Last name" style="flex:1;min-width:80px">';
+    h+='<input class="inp" id="a-ph" placeholder="+15551234567" style="flex:1;min-width:120px" onkeydown="if(event.key===\'Enter\')doAddVoter()">';
+    h+='<select class="inp" id="a-seg" style="flex:1">'+segOpts('')+'</select>';
+    h+='<button class="btn btn-blue" onclick="doAddVoter()">Add</button>';
+    h+='<button class="btn" onclick="PANELS.addVoter=false;render()">✕</button></div></div>';
+  }
+  if(!DATA.voters.length)return h+'<div class="empty"><div class="empty-t">No voters yet</div>Import a CSV or add manually above.</div>';
+  h+='<div class="tw"><div class="scroll"><table class="tbl"><thead><tr><th>Name</th><th>Phone</th><th>Segments</th><th>Event</th><th>Follow-up</th><th></th></tr></thead><tbody>';
+  filtered.forEach(function(v){
+    h+='<tr><td style="font-weight:500">'+v.firstName+' '+v.lastName+'</td>';
+    h+='<td style="color:var(--text2);font-family:DM Mono,monospace;font-size:11px">'+v.phone+'</td>';
+    h+='<td>'+voterSegTags(v)+'</td>';
+    h+='<td>'+(v.checkedIn?'<span class="tag tag-green">Attended</span>':'<span class="tag tag-gray">Pending</span>')+'</td>';
+    h+='<td>'+fuTag(v)+'</td>';
+    h+='<td><button class="btn btn-red" style="padding:2px 7px;font-size:11px" onclick="doRemoveVoter(\''+v.id+'\')">✕</button></td></tr>';
+  });
+  if(!filtered.length)h+='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">No results</td></tr>';
+  h+='</tbody></table></div></div><div style="font-size:11px;color:var(--text3);margin-top:6px">'+filtered.length+' of '+DATA.voters.length+' voters</div>';
+  return h;
+}
+
+// ── SEGMENTS ─────────────────────────────────────────────────────────────────
+async function doAddSeg(){
+  var name=document.getElementById('seg-n').value.trim();
+  if(!name){toast('Name required');return;}
+  var color=SEG_COLORS[DATA.segments.length%SEG_COLORS.length];
+  await POST('/api/segments',{name:name,color:color});
+  PANELS.addSeg=false;
+  await loadAll();
+  toast('Segment created');
+}
+
+async function doRemoveSeg(id){
+  if(!confirm('Delete this segment?'))return;
+  await DEL('/api/segments/'+id);
+  await loadAll();
+}
+
+async function doToggleSeg(voterId,segId){
+  var v=DATA.voters.find(function(x){return x.id===voterId});
+  if(!v)return;
+  var segs=v.segments||[];
+  if(segs.includes(segId))segs=segs.filter(function(s){return s!==segId});
+  else segs=segs.concat([segId]);
+  await PUT('/api/voters/'+voterId,{segments:segs});
+  await loadAll();
+}
+
+async function doAssignToSeg(segId){
+  var el=document.getElementById('as-'+segId);
+  if(!el||!el.value)return;
+  var v=DATA.voters.find(function(x){return x.id===el.value});
+  if(!v)return;
+  var segs=(v.segments||[]).concat([segId]);
+  await PUT('/api/voters/'+el.value,{segments:segs});
+  await loadAll();
+}
+
+function renderSegments(){
+  var h='<div class="row" style="margin-bottom:12px"><button class="btn btn-blue" onclick="PANELS.addSeg=!PANELS.addSeg;render()">+ New segment</button></div>';
+  if(PANELS.addSeg){
+    h+='<div class="card"><div class="card-hd">New segment</div><div class="row">';
+    h+='<input class="inp" id="seg-n" placeholder="e.g. Confirmed Supporters" style="flex:1" onkeydown="if(event.key===\'Enter\')doAddSeg()">';
+    h+='<button class="btn btn-green" onclick="doAddSeg()">Create</button>';
+    h+='<button class="btn" onclick="PANELS.addSeg=false;render()">✕</button></div></div>';
+  }
+  if(!DATA.segments.length)return h+'<div class="empty"><div class="empty-t">No segments yet</div>Create groups to organize your voters.</div>';
+  DATA.segments.forEach(function(seg){
+    var members=DATA.voters.filter(function(v){return(v.segments||[]).includes(seg.id)});
+    var ci=members.filter(function(v){return v.checkedIn}).length;
+    h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    h+='<div style="display:flex;align-items:center;gap:8px"><div class="seg-dot" style="background:'+seg.color+';width:12px;height:12px"></div>';
+    h+='<span style="font-weight:600;font-size:14px">'+seg.name+'</span>';
+    h+='<span class="tag tag-gray">'+members.length+' voters</span>';
+    if(ci)h+='<span class="tag tag-green">'+ci+' attended</span>';
+    h+='</div><button class="btn btn-red" style="font-size:11px;padding:2px 8px" onclick="doRemoveSeg(\''+seg.id+'\')">Delete</button></div>';
+    if(members.length){
+      h+='<div class="tw"><div class="scroll" style="max-height:140px"><table class="tbl"><thead><tr><th>Name</th><th>Phone</th><th>Status</th><th></th></tr></thead><tbody>';
+      members.forEach(function(v){
+        h+='<tr><td>'+v.firstName+' '+v.lastName+'</td><td style="font-family:DM Mono,monospace;color:var(--text2);font-size:11px">'+v.phone+'</td>';
+        h+='<td>'+(v.checkedIn?'<span class="tag tag-green">Attended</span>':'<span class="tag tag-gray">Pending</span>')+'</td>';
+        h+='<td><button class="btn" style="font-size:11px;padding:2px 7px" onclick="doToggleSeg(\''+v.id+'\',\''+seg.id+'\')">Remove</button></td></tr>';
+      });
+      h+='</tbody></table></div></div>';
+    }
+    var nonMembers=DATA.voters.filter(function(v){return!(v.segments||[]).includes(seg.id)});
+    if(nonMembers.length){
+      h+='<div class="row" style="margin-top:10px"><select class="inp" id="as-'+seg.id+'" style="flex:1"><option value="">— Add voter to this segment —</option>';
+      nonMembers.forEach(function(v){h+='<option value="'+v.id+'">'+v.firstName+' '+v.lastName+' ('+v.phone+')</option>';});
+      h+='</select><button class="btn btn-blue" style="font-size:12px" onclick="doAssignToSeg(\''+seg.id+'\')">Add</button></div>';
+    }
+    h+='</div>';
+  });
+  return h;
+}
+
+// ── SEND TEXTS ────────────────────────────────────────────────────────────────
+async function doSend(){
+  var user=document.getElementById('ez-u').value.trim();
+  var pass=document.getElementById('ez-p').value.trim();
+  if(!user||!pass){toast('Enter EZTexting username and password');return;}
+  var mode=document.getElementById('s-mode').value;
+  var msg=document.getElementById('s-msg').value.trim();
+  var segF=document.getElementById('s-seg').value;
+  if(!msg){toast('Message is required');return;}
+  var targets=DATA.voters.filter(function(v){return!segF||(v.segments||[]).includes(segF)});
+  if(!targets.length){toast('No voters found for this segment');return;}
+  if(!confirm('Send '+mode.toUpperCase()+' to '+targets.length+' voters?'))return;
+  SENDING=true;SEND_LOG=[];render();
+  for(var i=0;i<targets.length;i++){
+    var v=targets[i];
+    var text=msg.replace(/{first_name}/g,v.firstName).replace(/{last_name}/g,v.lastName).replace(/{event_name}/g,DATA.settings.eventName);
+    var payload={username:user,password:pass,phone:v.phone,message:text};
+    if(mode==='mms')payload.qrImageUrl=qrUrl(v.id,400);
+    try{
+      var r=await fetch('/'+( mode==='mms'?'send-mms':'send-sms'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      var d=await r.json();
+      SEND_LOG.push({voter:v,ok:d.success,msg:d.success?'Sent':(d.error||'Failed')});
+    }catch(e){SEND_LOG.push({voter:v,ok:false,msg:e.message});}
+    await new Promise(function(r){setTimeout(r,350)});
+    render();
+  }
+  SENDING=false;render();toast('Done! '+SEND_LOG.filter(function(r){return r.ok}).length+' sent.');
+}
+
+function renderSend(){
+  var sent=SEND_LOG.filter(function(r){return r.ok}).length;
+  var fail=SEND_LOG.filter(function(r){return!r.ok}).length;
+  var segOp='<option value="">All voters ('+DATA.voters.length+')</option>'+DATA.segments.map(function(s){var n=DATA.voters.filter(function(v){return(v.segments||[]).includes(s.id)}).length;return'<option value="'+s.id+'">'+s.name+' ('+n+')</option>';}).join('');
+  var h='<div class="card"><div class="card-hd">EZTexting credentials</div><div class="row">';
+  h+='<div style="flex:1"><div class="lbl">Username / email</div><input class="inp" id="ez-u" value="'+DATA.settings.ezUser+'" placeholder="you@example.com"></div>';
+  h+='<div style="flex:1"><div class="lbl">Password</div><input type="password" class="inp" id="ez-p" value="'+EZ_PASS+'" placeholder="EZTexting password" onchange="EZ_PASS=this.value"></div>';
+  h+='</div></div>';
+  h+='<div class="card"><div class="card-hd">Campaign message</div>';
+  h+='<div class="row" style="margin-bottom:10px">';
+  h+='<div style="flex:1"><div class="lbl">Send to</div><select class="inp" id="s-seg">'+segOp+'</select></div>';
+  h+='<div style="flex:1"><div class="lbl">Type</div><select class="inp" id="s-mode"><option value="mms">MMS — attach unique QR image (3 credits)</option><option value="sms">SMS — QR link in text (1 credit)</option></select></div>';
+  h+='</div>';
+  h+='<div class="lbl">Message — <code>{first_name}</code> <code>{last_name}</code> <code>{event_name}</code></div>';
+  h+='<textarea class="inp" id="s-msg" style="margin-top:4px">Hi {first_name}! Your unique check-in QR for {event_name} is attached. Show it at the door to get in!</textarea></div>';
+  h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center">';
+  h+='<div><div style="font-weight:600;font-size:14px">Send campaign</div><div style="font-size:12px;color:var(--text2);margin-top:2px">Each voter gets their own unique QR code</div></div>';
+  h+=(SENDING?'<button class="btn" disabled><span class="spinner"></span>'+SEND_LOG.length+' / '+DATA.voters.length+'</button>':'<button class="btn btn-green" onclick="doSend()" style="padding:9px 20px;font-size:13px">Send texts</button>');
+  h+='</div>';
+  if(SEND_LOG.length){
+    h+='<div style="margin-top:12px"><div style="font-size:12px;color:var(--text2);margin-bottom:6px">'+sent+' sent · '+fail+' failed</div>';
+    h+='<div class="scroll" style="max-height:160px">';
+    SEND_LOG.forEach(function(r){h+='<div class="slog" style="background:var('+(r.ok?'--green-bg':'--red-bg')+');color:var('+(r.ok?'--green':'--red')+')"><span>'+r.voter.firstName+' '+r.voter.lastName+' · '+r.voter.phone+'</span><span style="font-family:DM Mono,monospace;font-size:11px">'+r.msg+'</span></div>';});
+    h+='</div></div>';
+  }
+  h+='</div>';
+  return h;
+}
+
+// ── CHECK-IN ──────────────────────────────────────────────────────────────────
+async function doCheckIn(){
+  var raw=document.getElementById('ci-in').value.trim();
+  var id=raw.toUpperCase();
+  if(raw.includes('voter=')){var m=raw.match(/voter=([^&\s]+)/i);if(m)id=m[1].toUpperCase();}
+  if(!id){return;}
+  try{
+    var r=await POST('/api/voters/'+id+'/checkin');
+    if(r.error){CI_RESULT={type:'err',msg:'No voter found: '+id,voter:null};}
+    else{CI_RESULT={type:r.alreadyCheckedIn?'warn':'ok',voter:r.voter,msg:r.alreadyCheckedIn?'Already checked in at '+new Date(r.voter.checkInTime).toLocaleTimeString():'Successfully checked in!'};}
+  }catch(e){CI_RESULT={type:'err',msg:'Error: '+e.message,voter:null};}
+  document.getElementById('ci-in').value='';
+  await loadAll();
+  setTimeout(function(){CI_RESULT=null;render();},10000);
+}
+
+function renderCheckIn(){
+  var recent=DATA.voters.filter(function(v){return v.checkedIn}).sort(function(a,b){return new Date(b.checkInTime)-new Date(a.checkInTime)}).slice(0,12);
+  var r=CI_RESULT;
+  var h='<div style="max-width:540px;margin:0 auto">';
+  h+='<div class="card"><div class="card-hd">Scan or enter voter ID</div>';
+  h+='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Type the voter ID or paste the full QR URL — press Enter</div>';
+  h+='<div class="row"><input class="inp" id="ci-in" placeholder="Voter ID e.g. ABC1XYZ23..." onkeydown="if(event.key===\'Enter\')doCheckIn()" style="flex:1;padding:11px;font-size:15px;font-family:DM Mono,monospace" autofocus>';
+  h+='<button class="btn btn-green" onclick="doCheckIn()" style="padding:11px 18px;font-size:14px">Check In</button></div></div>';
+  if(r){
+    var cls=r.type==='ok'?'ci-ok':r.type==='warn'?'ci-warn':'ci-err';
+    var ico=r.type==='ok'?'✅':r.type==='warn'?'⚠️':'❌';
+    h+='<div class="ci-card '+cls+'">';
+    h+='<div style="font-size:28px">'+ico+'</div>';
+    h+='<div style="flex:1">';
+    if(r.voter){
+      h+='<div style="font-size:16px;font-weight:600">'+r.voter.firstName+' '+r.voter.lastName+'</div>';
+      h+='<div style="font-size:12px;color:var(--text2);font-family:DM Mono,monospace;margin-top:2px">'+r.voter.phone+'</div>';
+      h+='<div style="margin-top:4px">'+r.msg+'</div>';
+      h+='<div style="margin-top:6px">'+voterSegTags(r.voter)+'</div>';
+      h+='<div style="margin-top:8px"><img src="'+qrUrl(r.voter.id,90)+'" style="width:70px;height:70px;border-radius:5px;background:#fff;padding:3px;border:1px solid var(--border)"></div>';
+    }else{h+='<div style="font-weight:600">'+r.msg+'</div>';}
+    h+='</div></div>';
+  }
+  if(recent.length){
+    h+='<div class="card"><div class="card-hd">Recent check-ins ('+recent.length+')</div>';
+    h+='<table class="tbl"><tbody>';
+    recent.forEach(function(v){
+      h+='<tr><td><div class="avatar" style="width:30px;height:30px;font-size:11px;display:inline-flex;margin-right:8px;background:var(--blue-bg);color:var(--blue)">'+initials(v)+'</div>'+v.firstName+' '+v.lastName+'</td>';
+      h+='<td style="color:var(--text2);font-family:DM Mono,monospace;font-size:11px">'+v.phone+'</td>';
+      h+='<td>'+voterSegTags(v)+'</td>';
+      h+='<td style="color:var(--text3);font-size:11px">'+new Date(v.checkInTime).toLocaleTimeString()+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+  h+='</div>';
+  return h;
+}
+
+// ── FOLLOW-UP ──────────────────────────────────────────────────────────────────
+async function doSetFU(id,status){
+  await PUT('/api/voters/'+id+'/followup',{status:status});
+  await loadAll();
+  toast('Status updated');
+}
+async function doSaveNote(id){
+  var el=document.getElementById('note-'+id);
+  if(!el)return;
+  await PUT('/api/voters/'+id+'/followup',{notes:el.value});
+  var btn=document.getElementById('nsave-'+id);
+  if(btn){btn.textContent='Saved!';setTimeout(function(){btn.textContent='Save note';},1500);}
+}
+
+function renderFollowUp(){
+  var checked=DATA.voters.filter(function(v){return v.checkedIn});
+  if(!checked.length)return'<div class="empty"><div class="empty-t">No check-ins yet</div>Voters appear here after checking in at the event.</div>';
+  var fil=(document.getElementById('fu-f')?document.getElementById('fu-f').value:'all');
+  var STATS=['pending','contacted','voted','noanswer'];
+  var LABELS={pending:'Pending',contacted:'Contacted',voted:'Voted',noanswer:'No Answer'};
+  var COLORS={pending:'var(--amber)',contacted:'var(--blue)',voted:'var(--green)',noanswer:'var(--red)'};
+  var counts={};
+  STATS.forEach(function(s){counts[s]=checked.filter(function(v){return(!v.followUp&&s==='pending')||(v.followUp&&(v.followUp.status||'pending')===s)}).length;});
+  var h='<div class="sg" style="grid-template-columns:repeat(4,1fr)">';
+  STATS.forEach(function(s){h+='<div class="st"><div class="stn" style="color:'+COLORS[s]+'">'+counts[s]+'</div><div class="stl">'+LABELS[s]+'</div></div>';});
+  h+='</div>';
+  h+='<div class="row" style="margin-bottom:12px"><select class="inp" id="fu-f" onchange="render()" style="width:auto"><option value="all">All ('+checked.length+')</option>';
+  STATS.forEach(function(s){h+='<option value="'+s+'"'+(fil===s?' selected':'')+'>'+LABELS[s]+' ('+counts[s]+')</option>';});
+  h+='</select></div>';
+  var visible=fil==='all'?checked:checked.filter(function(v){return(v.followUp?v.followUp.status:'pending')===fil;});
+  visible.forEach(function(v){
+    var fu=v.followUp||{status:'pending',notes:''};
+    var borderColor=COLORS[fu.status||'pending'];
+    h+='<div class="card" style="border-left:3px solid '+borderColor+'">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+    h+='<div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="width:36px;height:36px;font-size:12px;background:var(--blue-bg);color:var(--blue)">'+initials(v)+'</div>';
+    h+='<div><div style="font-weight:600">'+v.firstName+' '+v.lastName+'</div>';
+    h+='<div style="font-size:12px;color:var(--text2);font-family:DM Mono,monospace">'+v.phone+'</div></div></div>';
+    h+='<div>'+voterSegTags(v)+'</div></div>';
+    h+='<div class="row" style="margin-bottom:8px">';
+    STATS.forEach(function(s){
+      h+='<button class="fu-btn fu-'+s+(fu.status===s?' act':'')+'" onclick="doSetFU(\''+v.id+'\',\''+s+'\')">'+LABELS[s]+'</button>';
+    });
+    h+='</div>';
+    h+='<div class="row"><textarea class="inp" id="note-'+v.id+'" style="min-height:50px;flex:1" placeholder="Notes...">'+( fu.notes||'')+'</textarea>';
+    h+='<button class="btn" id="nsave-'+v.id+'" onclick="doSaveNote(\''+v.id+'\')">Save note</button></div>';
+    if(fu.lastContactDate)h+='<div style="font-size:11px;color:var(--text3);margin-top:4px">Updated '+new Date(fu.lastContactDate).toLocaleString()+'</div>';
+    h+='</div>';
+  });
+  if(!visible.length)h+='<div style="text-align:center;padding:30px;color:var(--text3)">No voters in this category.</div>';
+  return h;
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function renderDashboard(){
+  var t=DATA.voters.length;
+  if(!t)return'<div class="empty"><div class="empty-t">No data yet</div>Add voters to see your campaign stats.</div>';
+  var ci=DATA.voters.filter(function(v){return v.checkedIn}).length;
+  var voted=DATA.voters.filter(function(v){return v.followUp&&v.followUp.status==='voted'}).length;
+  var contacted=DATA.voters.filter(function(v){return v.followUp&&v.followUp.status==='contacted'}).length;
+  var h='<div class="sg">';
+  h+='<div class="st"><div class="stn" style="color:var(--blue)">'+t+'</div><div class="stl">Total voters</div></div>';
+  h+='<div class="st"><div class="stn" style="color:var(--green)">'+ci+'</div><div class="stl">Attended event</div><div class="prog"><div class="pf" style="width:'+( t?Math.round(ci/t*100):0)+'%;background:var(--green)"></div></div></div>';
+  h+='<div class="st"><div class="stn" style="color:var(--purple)">'+voted+'</div><div class="stl">Confirmed voted</div><div class="prog"><div class="pf" style="width:'+( ci?Math.round(voted/ci*100):0)+'%;background:var(--purple)"></div></div></div>';
+  h+='<div class="st"><div class="stn" style="color:var(--amber)">'+contacted+'</div><div class="stl">Contacted</div></div>';
+  h+='</div>';
+  if(DATA.segments.length){
+    h+='<div class="card"><div class="card-hd">By segment</div><table class="tbl"><thead><tr><th>Segment</th><th>Voters</th><th>Attended</th><th>Voted</th><th>Rate</th></tr></thead><tbody>';
+    DATA.segments.forEach(function(seg){
+      var sv=DATA.voters.filter(function(v){return(v.segments||[]).includes(seg.id)});
+      var sci=sv.filter(function(v){return v.checkedIn}).length;
+      var svoted=sv.filter(function(v){return v.followUp&&v.followUp.status==='voted'}).length;
+      var rate=sv.length?Math.round(svoted/sv.length*100):0;
+      h+='<tr><td><span class="seg-dot" style="background:'+seg.color+'"></span>'+seg.name+'</td>';
+      h+='<td>'+sv.length+'</td><td>'+sci+'</td><td>'+svoted+'</td><td><span class="tag '+(rate>50?'tag-green':'tag-gray')+'">'+rate+'%</span></td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+  var recent=DATA.voters.filter(function(v){return v.checkedIn}).sort(function(a,b){return new Date(b.checkInTime)-new Date(a.checkInTime)}).slice(0,10);
+  if(recent.length){
+    h+='<div class="card"><div class="card-hd">Recent check-ins</div><table class="tbl"><tbody>';
+    recent.forEach(function(v){h+='<tr><td style="font-weight:500">'+v.firstName+' '+v.lastName+'</td><td style="color:var(--text2)">'+v.phone+'</td><td>'+fuTag(v)+'</td><td style="color:var(--text3);font-size:11px">'+new Date(v.checkInTime).toLocaleString()+'</td></tr>';});
+    h+='</tbody></table></div>';
+  }
+  return h;
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+async function doSaveSettings(){
+  var s={eventName:document.getElementById('s-ev').value,checkinUrl:document.getElementById('s-url').value,ezUser:document.getElementById('s-eu').value};
+  await PUT('/api/settings',s);
+  DATA.settings=Object.assign(DATA.settings,s);
+  toast('Settings saved');
+}
+
+function renderSettings(){
+  var h='<div class="card"><div class="card-hd">Event settings</div>';
+  h+='<div class="row"><div style="flex:1"><div class="lbl">Event name</div><input class="inp" id="s-ev" value="'+DATA.settings.eventName+'"></div>';
+  h+='<div style="flex:2"><div class="lbl">Check-in base URL (this app\'s URL)</div><input class="inp" id="s-url" value="'+DATA.settings.checkinUrl+'"></div></div>';
+  h+='</div><div class="card"><div class="card-hd">EZTexting credentials</div>';
+  h+='<div class="lbl">Username / email</div><input class="inp" id="s-eu" value="'+DATA.settings.ezUser+'" placeholder="your@email.com" style="margin-bottom:10px">';
+  h+='<div class="lbl" style="color:var(--text3)">Password is entered on the Send Texts screen each session for security</div>';
+  h+='</div><button class="btn btn-blue" style="padding:10px 20px;font-size:13px" onclick="doSaveSettings()">Save settings</button>';
+  h+='<div class="help" style="margin-top:12px"><b style="font-weight:600">Check-in URL:</b> Set this to this app\'s Railway URL so QR codes point here.<br>';
+  h+='Each QR encodes: <code>'+DATA.settings.checkinUrl+'/checkin?voter=VOTER_ID</code><br>';
+  h+='When a voter scans their QR, they\'ll see a check-in confirmation page at that URL.</div>';
+  return h;
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────────
+var TITLES={voters:{t:'Voters',s:'Manage your voter list'},segments:{t:'Segments',s:'Organize voters into groups'},
+  send:{t:'Send Texts',s:'Unique QR per voter via EZTexting'},checkin:{t:'Event Check-In',s:'Scan or type voter ID'},
+  followup:{t:'Early Vote Follow-Up',s:'Track who has voted early'},dashboard:{t:'Dashboard',s:'Campaign overview'},
+  settings:{t:'Settings',s:'Configure event and credentials'}};
+
+function render(){
+  var info=TITLES[CUR]||{t:CUR,s:''};
+  document.getElementById('pg-t').textContent=info.t;
+  document.getElementById('pg-s').textContent=info.s;
+  document.getElementById('top-stats').innerHTML=renderTopStats();
+  var pg=document.getElementById('page');
+  if(CUR==='voters')pg.innerHTML=renderVoters();
+  else if(CUR==='segments')pg.innerHTML=renderSegments();
+  else if(CUR==='send')pg.innerHTML=renderSend();
+  else if(CUR==='checkin')pg.innerHTML=renderCheckIn();
+  else if(CUR==='followup')pg.innerHTML=renderFollowUp();
+  else if(CUR==='dashboard')pg.innerHTML=renderDashboard();
+  else if(CUR==='settings')pg.innerHTML=renderSettings();
+}
+
+loadAll();
+</script>
+</body>
+</html>

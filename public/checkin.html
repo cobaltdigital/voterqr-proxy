@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Check-In</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#f2f1ec;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.box{background:#fff;border-radius:16px;padding:32px;max-width:420px;width:100%;text-align:center;border:1px solid #e4e2d9}
+.icon{font-size:48px;margin-bottom:16px}
+.name{font-size:26px;font-weight:600;margin-bottom:6px}
+.phone{font-size:15px;color:#6b6860;margin-bottom:16px;font-family:monospace}
+.status{padding:10px 20px;border-radius:30px;font-size:14px;font-weight:500;display:inline-block;margin-bottom:20px}
+.ok{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
+.already{background:#fffbeb;color:#d97706;border:1px solid #fde68a}
+.err{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.seg{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;margin:3px}
+.sub{font-size:13px;color:#aaa89f;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="box" id="box">
+  <div class="icon">⏳</div>
+  <div class="name">Checking in...</div>
+</div>
+<script>
+var params=new URLSearchParams(window.location.search);
+var voterId=(params.get('voter')||'').toUpperCase();
+async function run(){
+  var box=document.getElementById('box');
+  if(!voterId){
+    box.innerHTML='<div class="icon">❌</div><div class="name">Invalid QR code</div><div class="sub">No voter ID found.</div>';
+    return;
+  }
+  try{
+    var res=await fetch('/api/voters/'+voterId+'/checkin',{method:'POST',headers:{'Content-Type':'application/json'}});
+    var data=await res.json();
+    if(data.error){
+      box.innerHTML='<div class="icon">❌</div><div class="name">Voter not found</div><div class="sub">ID: '+voterId+'<br>Please see the registration desk.</div>';
+      return;
+    }
+    var v=data.voter;
+    var already=data.alreadyCheckedIn;
+    var segsHtml='';
+    if(v.segments&&v.segments.length){
+      // Fetch segments for names
+      try{
+        var sr=await fetch('/api/segments');
+        var segs=await sr.json();
+        v.segments.forEach(function(sid){
+          var s=segs.find(function(x){return x.id===sid});
+          if(s)segsHtml+='<span class="seg" style="background:'+s.color+'22;color:'+s.color+';border:1px solid '+s.color+'44">'+s.name+'</span>';
+        });
+      }catch(e){}
+    }
+    var time=already?new Date(v.checkInTime).toLocaleTimeString():'just now';
+    box.innerHTML='<div class="icon">'+(already?'⚠️':'✅')+'</div>'+
+      '<div class="name">'+v.firstName+' '+v.lastName+'</div>'+
+      '<div class="phone">'+v.phone+'</div>'+
+      '<div class="status '+(already?'already':'ok')+'">'+(already?'Already checked in at '+time:'Welcome! You\'re checked in.')+'</div>'+
+      (segsHtml?'<div>'+segsHtml+'</div>':'')+
+      '<div class="sub">'+( already?'You were checked in earlier today.':'Your attendance has been recorded. Enjoy the event!')+'</div>';
+  }catch(e){
+    box.innerHTML='<div class="icon">❌</div><div class="name">Connection error</div><div class="sub">'+e.message+'</div>';
+  }
+}
+run();
+</script>
+</body>
+</html>

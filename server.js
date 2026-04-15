@@ -34,10 +34,12 @@ app.get('/qr/:id', async (req, res) => {
     const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&format=png&data=${data}`;
     const imgRes = await fetch(qrApiUrl);
     if (!imgRes.ok) return res.status(502).send('QR generation failed');
-    const buffer = await imgRes.buffer();
-    res.set('Content-Type', 'image/png');
-    res.set('Cache-Control', 'public, max-age=3600');
-    res.send(buffer);
+    // Pipe directly — avoids Express overriding Content-Type to octet-stream
+    res.writeHead(200, {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, max-age=3600'
+    });
+    imgRes.body.pipe(res);
   } catch(e) {
     res.status(500).send('Error: ' + e.message);
   }

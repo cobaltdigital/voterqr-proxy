@@ -101,7 +101,7 @@ async function uploadMedia(username, password, imageUrl) {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     },
-    body: JSON.stringify({ url: imageUrl })
+    body: JSON.stringify({ mediaUrl: imageUrl })
   });
   const data = await res.json().catch(() => ({}));
   console.log('Media upload response:', res.status, JSON.stringify(data));

@@ -110,27 +110,17 @@ function ezBasicAuth(username, password) {
 }
 
 // POST /send-mms
-// Instead of uploading to EZTexting media library (which has content-type issues),
-// we pass our own /qr/:id URL as mediaUrl directly in the message.
-// EZTexting fetches it from our server which returns clean image/png.
 app.post('/send-mms', async (req, res) => {
-  const { username, password, phone, message, voterId, serverUrl } = req.body;
+  const { username, password, phone, message, voterId } = req.body;
   if (!username || !password || !phone || !message || !voterId)
     return res.status(400).json({ success: false, error: 'Missing required fields' });
-
   try {
     const cleanPhone = phone.replace(/\D/g, '').replace(/^1/, '');
-    const base = serverUrl || DB.settings.checkinUrl || `https://voterqr-proxy-production.up.railway.app`;
-    const mediaUrl = `${base}/qr/${voterId}`;
-
-    const body = {
-      toNumbers: [cleanPhone],
-      message: message,
-      mediaUrl: mediaUrl
-    };
-
-    console.log('Sending MMS to', cleanPhone, 'with mediaUrl:', mediaUrl);
-
+    const baseUrl = DB.settings.checkinUrl || `https://voterqr-proxy-production.up.railway.app`;
+    const checkinUrl = `${baseUrl}/checkin?voter=${voterId}`;
+    // quickchart.io returns proper image/png with correct Content-Type headers
+    const mediaUrl = `https://quickchart.io/qr?text=${encodeURIComponent(checkinUrl)}&size=400&format=png`;
+    console.log('Sending MMS to', cleanPhone, 'mediaUrl:', mediaUrl);
     const sendRes = await fetch('https://a.eztexting.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -138,15 +128,12 @@ app.post('/send-mms', async (req, res) => {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ toNumbers: [cleanPhone], message, mediaUrl })
     });
-
     const data = await sendRes.json().catch(() => ({}));
     console.log('Send response:', sendRes.status, JSON.stringify(data));
-
     if (!sendRes.ok)
       return res.status(400).json({ success: false, error: JSON.stringify(data) });
-
     return res.json({ success: true });
   } catch(err) {
     console.error('send-mms error:', err);

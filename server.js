@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
 
@@ -84,40 +85,44 @@ app.put('/api/settings', (req, res) => {
 });
 
 // ── EZTexting NEW API (a.eztexting.com/v1) ────────────────────────────────────
-// Auth: Basic Auth header — base64(username:password)
-// Send endpoint:  POST https://a.eztexting.com/v1/messages
-// Media endpoint: POST https://a.eztexting.com/v1/media-files
-
 function ezBasicAuth(username, password) {
   return 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
 }
 
-// Step 1: Upload QR image URL to EZTexting media library → returns media file ID
+// Download QR image from QR service → upload as real PNG file to EZTexting
 async function uploadMedia(username, password, imageUrl) {
+  // Download the QR image as a buffer
+  const imgRes = await fetch(imageUrl);
+  if (!imgRes.ok) return { success: false, error: 'Failed to download QR image: ' + imgRes.status };
+  const imgBuffer = await imgRes.buffer();
+
+  // Upload to EZTexting as multipart/form-data with explicit image/png type
+  const form = new FormData();
+  form.append('file', imgBuffer, { filename: 'qr.png', contentType: 'image/png' });
+
   const res = await fetch('https://a.eztexting.com/v1/media-files', {
     method: 'POST',
     headers: {
       'Authorization': ezBasicAuth(username, password),
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      ...form.getHeaders()
     },
-    body: JSON.stringify({ mediaUrl: imageUrl })
+    body: form
   });
+
   const data = await res.json().catch(() => ({}));
   console.log('Media upload response:', res.status, JSON.stringify(data));
-  if (res.ok && (data.id || data.mediaFileId || data.Id)) {
-    return { success: true, id: data.id || data.mediaFileId || data.Id };
-  }
+
+  // EZTexting may return id, mediaFileId, or Id depending on version
+  const id = data.id || data.mediaFileId || data.Id || (data.data && data.data.id);
+  if (res.ok && id) return { success: true, id };
   return { success: false, error: JSON.stringify(data) };
 }
 
-// Step 2: Send MMS with media file ID
+// Send message via new API
 async function sendMessage(username, password, phone, message, mediaFileId) {
   const cleanPhone = phone.replace(/\D/g, '').replace(/^1/, '');
-  const body = {
-    phoneNumbers: [cleanPhone],
-    message: message
-  };
+  const body = { phoneNumbers: [cleanPhone], message };
   if (mediaFileId) body.mediaFileId = mediaFileId;
 
   const res = await fetch('https://a.eztexting.com/v1/messages', {
@@ -129,27 +134,24 @@ async function sendMessage(username, password, phone, message, mediaFileId) {
     },
     body: JSON.stringify(body)
   });
+
   const data = await res.json().catch(() => ({}));
   console.log('Send message response:', res.status, JSON.stringify(data));
   return { success: res.ok, status: res.status, data };
 }
 
-// POST /send-mms — upload QR image then send MMS
+// POST /send-mms
 app.post('/send-mms', async (req, res) => {
   const { username, password, phone, message, qrImageUrl } = req.body;
   if (!username || !password || !phone || !message || !qrImageUrl)
     return res.status(400).json({ success: false, error: 'Missing required fields' });
   try {
-    // Upload media
     const upload = await uploadMedia(username, password, qrImageUrl);
     if (!upload.success)
       return res.status(400).json({ success: false, error: 'Image upload failed: ' + upload.error });
-
-    // Send MMS
     const send = await sendMessage(username, password, phone, message, upload.id);
     if (!send.success)
       return res.status(400).json({ success: false, error: JSON.stringify(send.data) });
-
     return res.json({ success: true });
   } catch(err) {
     console.error('send-mms error:', err);
@@ -157,7 +159,7 @@ app.post('/send-mms', async (req, res) => {
   }
 });
 
-// POST /send-sms — send SMS with QR link in text
+// POST /send-sms
 app.post('/send-sms', async (req, res) => {
   const { username, password, phone, message } = req.body;
   if (!username || !password || !phone || !message)

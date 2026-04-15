@@ -122,7 +122,7 @@ app.post('/send-mms', async (req, res) => {
     const mediaUrl = `${base}/qr/${voterId}`;
 
     const body = {
-      phoneNumbers: [cleanPhone],
+      toNumbers: [cleanPhone],
       message: message,
       mediaUrl: mediaUrl
     };
@@ -166,7 +166,7 @@ app.post('/send-sms', async (req, res) => {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify({ phoneNumbers: [cleanPhone], message })
+      body: JSON.stringify({ toNumbers: [cleanPhone], message })
     });
     const data = await sendRes.json().catch(() => ({}));
     if (!sendRes.ok)

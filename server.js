@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 
@@ -10,6 +11,10 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Ensure qrcodes folder exists inside public (served as static files)
+const QR_DIR = path.join(__dirname, 'public', 'qrcodes');
+if (!fs.existsSync(QR_DIR)) fs.mkdirSync(QR_DIR, { recursive: true });
 
 // ── DB ────────────────────────────────────────────────────────────────────────
 const DB_PATH = path.join(__dirname, 'data.json');
@@ -24,26 +29,15 @@ function uid() { return (Date.now().toString(36) + Math.random().toString(36).su
 // ── Health ────────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'VoterQR running', voters: DB.voters.length }));
 
-// ── QR Image proxy ────────────────────────────────────────────────────────────
-// Serves QR codes with clean Content-Type: image/png (no charset)
-// EZTexting fetches this URL when sending MMS
-app.get('/qr/:id', async (req, res) => {
-  try {
-    const baseUrl = DB.settings.checkinUrl || `https://${req.headers.host}`;
-    const data = encodeURIComponent(`${baseUrl}/checkin?voter=${req.params.id}`);
-    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&format=png&data=${data}`;
-    const imgRes = await fetch(qrApiUrl);
-    if (!imgRes.ok) return res.status(502).send('QR generation failed');
-    // Pipe directly — avoids Express overriding Content-Type to octet-stream
-    res.writeHead(200, {
-      'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=3600'
-    });
-    imgRes.body.pipe(res);
-  } catch(e) {
-    res.status(500).send('Error: ' + e.message);
-  }
-});
+// ── Generate & serve QR as static PNG ─────────────────────────────────────────
+// Generates a real .png file served by Express static with correct Content-Type
+async function generateQR(voterId, host) {
+  const baseUrl = DB.settings.checkinUrl || `https://${host}`;
+  const checkinUrl = `${baseUrl}/checkin?voter=${voterId}`;
+  const filePath = path.join(QR_DIR, `${voterId}.png`);
+  await QRCode.toFile(filePath, checkinUrl, { type: 'png', width: 400, margin: 2 });
+  return `/qrcodes/${voterId}.png`;
+}
 
 // ── Voters ────────────────────────────────────────────────────────────────────
 app.get('/api/voters', (req, res) => res.json(DB.voters));
@@ -104,23 +98,29 @@ app.put('/api/settings', (req, res) => {
   DB.settings = { ...DB.settings, ...req.body }; saveDB(); res.json(DB.settings);
 });
 
-// ── EZTexting NEW API ─────────────────────────────────────────────────────────
-function ezBasicAuth(username, password) {
-  return 'Basic ' + Buffer.from(username + ':' + password).toString('base64');
+// ── EZTexting ─────────────────────────────────────────────────────────────────
+function ezBasicAuth(u, p) {
+  return 'Basic ' + Buffer.from(u + ':' + p).toString('base64');
 }
 
 // POST /send-mms
+// Generates a real PNG file → served by Express static (Content-Type: image/png, no charset)
+// Passes that URL to EZTexting as mediaUrl
 app.post('/send-mms', async (req, res) => {
   const { username, password, phone, message, voterId } = req.body;
   if (!username || !password || !phone || !message || !voterId)
     return res.status(400).json({ success: false, error: 'Missing required fields' });
   try {
     const cleanPhone = phone.replace(/\D/g, '').replace(/^1/, '');
-    const baseUrl = DB.settings.checkinUrl || `https://voterqr-proxy-production.up.railway.app`;
-    const checkinUrl = `${baseUrl}/checkin?voter=${voterId}`;
-    // quickchart.io returns proper image/png with correct Content-Type headers
-    const mediaUrl = `https://quickchart.io/qr?text=${encodeURIComponent(checkinUrl)}&size=400&format=png`;
-    console.log('Sending MMS to', cleanPhone, 'mediaUrl:', mediaUrl);
+    const host = req.headers.host;
+
+    // Generate QR as real .png file, get the static file path
+    const qrPath = await generateQR(voterId, host);
+    const serverBase = DB.settings.checkinUrl || `https://${host}`;
+    const mediaUrl = `${serverBase}${qrPath}`;
+
+    console.log('MMS to', cleanPhone, '| mediaUrl:', mediaUrl);
+
     const sendRes = await fetch('https://a.eztexting.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -130,8 +130,10 @@ app.post('/send-mms', async (req, res) => {
       },
       body: JSON.stringify({ toNumbers: [cleanPhone], message, mediaUrl })
     });
+
     const data = await sendRes.json().catch(() => ({}));
-    console.log('Send response:', sendRes.status, JSON.stringify(data));
+    console.log('EZTexting response:', sendRes.status, JSON.stringify(data));
+
     if (!sendRes.ok)
       return res.status(400).json({ success: false, error: JSON.stringify(data) });
     return res.json({ success: true });

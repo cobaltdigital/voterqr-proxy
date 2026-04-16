@@ -1,18 +1,15 @@
 {
   "name": "voterqr-app",
-  "version": "2.0.0",
-  "description": "VoterQR Campaign Platform — voter management, QR check-in, EZTexting integration",
+  "version": "3.0.0",
+  "description": "VoterQR Campaign Platform",
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
+  "scripts": { "start": "node server.js" },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "jimp": "^0.22.12",
     "node-fetch": "^2.7.0",
     "qrcode": "^1.5.3"
   },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+  "engines": { "node": ">=18.0.0" }
 }

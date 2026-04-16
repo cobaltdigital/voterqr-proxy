@@ -132,7 +132,7 @@ code{font-family:'DM Mono',monospace;font-size:11px;background:var(--surface2);p
 <div class="toast" id="toast"></div>
 
 <script>
-var CUR='voters', DATA={voters:[],segments:[],settings:{eventName:'Campaign Event 2026',checkinUrl:window.location.origin,ezUser:''}};
+var CUR='voters', DATA={voters:[],segments:[],settings:{eventName:'Campaign Event 2026',checkinUrl:window.location.origin,ezUser:''},campaignImage:null};
 var SENDING=false, SEND_LOG=[], CI_RESULT=null, EZ_PASS='';
 var PANELS={importOpen:false,addVoter:false,addSeg:false};
 var SEG_COLORS=['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#65a30d'];
@@ -156,6 +156,8 @@ async function PUT(p,b){return api('PUT',p,b)}
 async function DEL(p){return api('DELETE',p)}
 
 async function loadAll(){
+  var ci=await GET('/api/campaign-image').catch(function(){return{};});
+  DATA.hasCampaignImage=ci.hasImage||false;
   var [v,s,st]=await Promise.all([GET('/api/voters'),GET('/api/segments'),GET('/api/settings')]);
   DATA.voters=v||[];DATA.segments=s||[];DATA.settings=Object.assign(DATA.settings,st||{});
   if(!DATA.settings.checkinUrl)DATA.settings.checkinUrl=window.location.origin;
@@ -280,16 +282,16 @@ function renderVoters(){
     h+='<button class="btn" onclick="PANELS.addVoter=false;render()">✕</button></div></div>';
   }
   if(!DATA.voters.length)return h+'<div class="empty"><div class="empty-t">No voters yet</div>Import a CSV or add manually above.</div>';
-  h+='<div class="tw"><div class="scroll"><table class="tbl"><thead><tr><th>Name</th><th>Phone</th><th>Segments</th><th>Event</th><th>Follow-up</th><th></th></tr></thead><tbody>';
+  h+='<div class="tw"><div class="scroll"><table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Segments</th><th>Event</th><th>Follow-up</th><th></th></tr></thead><tbody>';
   filtered.forEach(function(v){
-    h+='<tr><td style="font-weight:500">'+v.firstName+' '+v.lastName+'</td>';
+    h+='<tr><td style="font-family:DM Mono,monospace;font-weight:600;color:var(--blue)">'+('#'+(v.number||'?'))+'</td><td style="font-weight:500">'+v.firstName+' '+v.lastName+'</td>';
     h+='<td style="color:var(--text2);font-family:DM Mono,monospace;font-size:11px">'+v.phone+'</td>';
     h+='<td>'+voterSegTags(v)+'</td>';
     h+='<td>'+(v.checkedIn?'<span class="tag tag-green">Attended</span>':'<span class="tag tag-gray">Pending</span>')+'</td>';
     h+='<td>'+fuTag(v)+'</td>';
     h+='<td><button class="btn btn-red" style="padding:2px 7px;font-size:11px" onclick="doRemoveVoter(\''+v.id+'\')">✕</button></td></tr>';
   });
-  if(!filtered.length)h+='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">No results</td></tr>';
+  if(!filtered.length)h+='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">No results</td></tr>';
   h+='</tbody></table></div></div><div style="font-size:11px;color:var(--text3);margin-top:6px">'+filtered.length+' of '+DATA.voters.length+' voters</div>';
   return h;
 }
@@ -331,8 +333,45 @@ async function doAssignToSeg(segId){
   await loadAll();
 }
 
+
+async function doCreateNoShowSegment(){
+  var noShows=DATA.voters.filter(function(v){return!v.checkedIn});
+  if(!noShows.length){toast('No no-shows found — everyone checked in!');return;}
+  if(!confirm('Create a segment with '+noShows.length+' voters who did NOT check in?'))return;
+  var name='No Shows '+new Date().toLocaleDateString();
+  var r=await POST('/api/segments/noshows',{name:name});
+  await loadAll();
+  toast('Created segment "'+r.segment.name+'" with '+r.added+' voters');
+}
+
+async function doUploadCampaignImage(){
+  var inp=document.getElementById('ci-file');
+  if(!inp||!inp.files||!inp.files[0]){toast('Pick an image first');return;}
+  var file=inp.files[0];
+  var reader=new FileReader();
+  reader.onload=async function(e){
+    var b64=e.target.result.split(',')[1];
+    await POST('/api/campaign-image',{imageBase64:b64});
+    DATA.hasCampaignImage=true;
+    toast('Campaign image uploaded! QR codes will now be embedded into it.');
+    render();
+  };
+  reader.readAsDataURL(file);
+}
+
+async function doRemoveCampaignImage(){
+  await DEL('/api/campaign-image');
+  DATA.hasCampaignImage=false;
+  toast('Campaign image removed');
+  render();
+}
+
 function renderSegments(){
-  var h='<div class="row" style="margin-bottom:12px"><button class="btn btn-blue" onclick="PANELS.addSeg=!PANELS.addSeg;render()">+ New segment</button></div>';
+  var noShowCount=DATA.voters.filter(function(v){return!v.checkedIn}).length;
+  var h='<div class="row" style="margin-bottom:12px">';
+  h+='<button class="btn btn-blue" onclick="PANELS.addSeg=!PANELS.addSeg;render()">+ New segment</button>';
+  if(DATA.voters.length)h+='<button class="btn btn-red" onclick="doCreateNoShowSegment()">Create no-show segment ('+noShowCount+' voters)</button>';
+  h+='</div>';
   if(PANELS.addSeg){
     h+='<div class="card"><div class="card-hd">New segment</div><div class="row">';
     h+='<input class="inp" id="seg-n" placeholder="e.g. Confirmed Supporters" style="flex:1" onkeydown="if(event.key===\'Enter\')doAddSeg()">';
@@ -432,6 +471,8 @@ async function doCheckIn(){
   var raw=document.getElementById('ci-in').value.trim();
   var id=raw.toUpperCase();
   if(raw.includes('voter=')){var m=raw.match(/voter=([^&\s]+)/i);if(m)id=m[1].toUpperCase();}
+  // Support lookup by number (e.g. "42" or "#42")
+  if(/^#?\d+$/.test(raw)){id=raw.replace('#','');}
   if(!id){return;}
   try{
     var r=await POST('/api/voters/'+id+'/checkin');
@@ -449,7 +490,7 @@ function renderCheckIn(){
   var h='<div style="max-width:540px;margin:0 auto">';
   h+='<div class="card"><div class="card-hd">Scan or enter voter ID</div>';
   h+='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Type the voter ID or paste the full QR URL — press Enter</div>';
-  h+='<div class="row"><input class="inp" id="ci-in" placeholder="Voter ID e.g. ABC1XYZ23..." onkeydown="if(event.key===\'Enter\')doCheckIn()" style="flex:1;padding:11px;font-size:15px;font-family:DM Mono,monospace" autofocus>';
+  h+='<div class="row"><input class="inp" id="ci-in" placeholder="Voter ID, #number, or QR URL..." onkeydown="if(event.key===\'Enter\')doCheckIn()" style="flex:1;padding:11px;font-size:15px;font-family:DM Mono,monospace" autofocus>';
   h+='<button class="btn btn-green" onclick="doCheckIn()" style="padding:11px 18px;font-size:14px">Check In</button></div></div>';
   if(r){
     var cls=r.type==='ok'?'ci-ok':r.type==='warn'?'ci-warn':'ci-err';
@@ -580,13 +621,26 @@ function renderSettings(){
   var h='<div class="card"><div class="card-hd">Event settings</div>';
   h+='<div class="row"><div style="flex:1"><div class="lbl">Event name</div><input class="inp" id="s-ev" value="'+DATA.settings.eventName+'"></div>';
   h+='<div style="flex:2"><div class="lbl">Check-in base URL (this app\'s URL)</div><input class="inp" id="s-url" value="'+DATA.settings.checkinUrl+'"></div></div>';
-  h+='</div><div class="card"><div class="card-hd">EZTexting credentials</div>';
+  h+='</div>';
+  h+='<div class="card"><div class="card-hd">Campaign image for QR texts</div>';
+  h+='<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Upload your event flyer or campaign image. Each voter\'s QR code will be embedded in the bottom-right corner before sending via MMS.</div>';
+  if(DATA.hasCampaignImage){
+    h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
+    h+='<span class="tag tag-green">Campaign image uploaded</span>';
+    h+='<button class="btn btn-red" style="font-size:12px" onclick="doRemoveCampaignImage()">Remove image</button>';
+    h+='</div>';
+    h+='<div style="font-size:12px;color:var(--text2)">QR codes will be embedded into your campaign image when sending MMS texts.</div>';
+  } else {
+    h+='<div class="row"><input type="file" id="ci-file" accept="image/*" class="inp" style="flex:1">';
+    h+='<button class="btn btn-blue" onclick="doUploadCampaignImage()">Upload image</button></div>';
+    h+='<div style="font-size:12px;color:var(--text3);margin-top:6px">No image uploaded — QR codes will be sent as plain white cards with voter number.</div>';
+  }
+  h+='</div>';
+  h+='<div class="card"><div class="card-hd">EZTexting credentials</div>';
   h+='<div class="lbl">Username / email</div><input class="inp" id="s-eu" value="'+DATA.settings.ezUser+'" placeholder="your@email.com" style="margin-bottom:10px">';
   h+='<div class="lbl" style="color:var(--text3)">Password is entered on the Send Texts screen each session for security</div>';
   h+='</div><button class="btn btn-blue" style="padding:10px 20px;font-size:13px" onclick="doSaveSettings()">Save settings</button>';
-  h+='<div class="help" style="margin-top:12px"><b style="font-weight:600">Check-in URL:</b> Set this to this app\'s Railway URL so QR codes point here.<br>';
-  h+='Each QR encodes: <code>'+DATA.settings.checkinUrl+'/checkin?voter=VOTER_ID</code><br>';
-  h+='When a voter scans their QR, they\'ll see a check-in confirmation page at that URL.</div>';
+  h+='<div class="help" style="margin-top:12px"><b style="font-weight:600">Check-in URL:</b> Set this to this app\'s Railway URL so QR codes point here.</div>';
   return h;
 }
 

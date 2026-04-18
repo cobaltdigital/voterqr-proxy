@@ -37,64 +37,64 @@ const JOBS = {};
 app.get('/health', (req, res) => res.json({ status: 'VoterQR running', voters: DB.voters.length }));
 
 // ── QR Generation with sharp (fast native C++) ────────────────────────────────
-// Returns cached file path if already generated, otherwise creates it
+// Returns cached file path if already generated
 async function generateQR(voter, host) {
   const filePath = path.join(QR_DIR, `${voter.id}.png`);
-
-  // Use cached version if it exists (cleared when campaign image changes)
   if (fs.existsSync(filePath)) return `/qrcodes/${voter.id}.png`;
 
   const baseUrl = DB.settings.checkinUrl || `https://${host}`;
   const checkinUrl = `${baseUrl}/checkin?voter=${voter.id}`;
   const num = voter.number || '?';
-  const name = `${voter.firstName} ${voter.lastName}`.trim().substring(0, 28);
+  const name = `${voter.firstName} ${voter.lastName}`.trim().substring(0, 26);
 
-  // Generate QR as PNG buffer
-  const qrBuf = await QRCode.toBuffer(checkinUrl, { type: 'png', width: 320, margin: 1 });
+  const QR_SIZE = 360;
+  const qrBuf = await QRCode.toBuffer(checkinUrl, { type: 'png', width: QR_SIZE, margin: 2 });
+
+  // QR panel: QR image + number/name label below, white background
+  const labelSvg = Buffer.from(`<svg width="${QR_SIZE}" height="72">
+    <rect width="${QR_SIZE}" height="72" fill="white"/>
+    <text x="${QR_SIZE/2}" y="30" font-family="Arial" font-size="24" font-weight="bold" text-anchor="middle" fill="#2563eb">#${num}</text>
+    <text x="${QR_SIZE/2}" y="56" font-family="Arial" font-size="14" text-anchor="middle" fill="#444">${name}</text>
+  </svg>`);
+
+  const qrPanel = await sharp(qrBuf)
+    .extend({ bottom: 72, background: { r: 255, g: 255, b: 255, alpha: 1 } })
+    .composite([{ input: labelSvg, top: QR_SIZE, left: 0 }])
+    .png().toBuffer();
 
   if (DB.campaignImage) {
-    // Embed QR into campaign image using sharp (very fast)
+    // Side-by-side: campaign image LEFT, QR panel RIGHT
+    // Both scaled to same height — nothing gets covered
     const campBuf = Buffer.from(DB.campaignImage, 'base64');
-
-    // Add white background + label to QR using sharp
-    const labelSvg = `<svg width="320" height="60">
-      <rect width="320" height="60" fill="white"/>
-      <text x="160" y="30" font-family="Arial" font-size="22" font-weight="bold" text-anchor="middle" fill="#1a1916">#${num}</text>
-      <text x="160" y="52" font-family="Arial" font-size="13" text-anchor="middle" fill="#6b6860">${name}</text>
-    </svg>`;
-
-    const badge = await sharp(qrBuf)
-      .extend({ bottom: 60, background: { r: 255, g: 255, b: 255, alpha: 1 } })
-      .composite([{ input: Buffer.from(labelSvg), top: 322, left: 0 }])
-      .png()
-      .toBuffer();
-
-    // Get campaign image dimensions
     const campMeta = await sharp(campBuf).metadata();
-    const badgeW = 340, badgeH = 382;
-    const left = campMeta.width - badgeW - 20;
-    const top = campMeta.height - badgeH - 20;
 
-    // Resize badge to fit if needed
-    const resizedBadge = await sharp(badge).resize(badgeW, badgeH, { fit: 'contain', background: 'white' }).png().toBuffer();
+    const targetH = Math.max(campMeta.height, QR_SIZE + 72);
+    // Scale campaign image to target height
+    const campResized = await sharp(campBuf)
+      .resize({ height: targetH, fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+      .png().toBuffer();
+    const campResizedMeta = await sharp(campResized).metadata();
 
-    await sharp(campBuf)
-      .composite([{ input: resizedBadge, left: Math.max(0, left), top: Math.max(0, top) }])
-      .png()
-      .toFile(filePath);
+    // Scale QR panel to target height
+    const qrResized = await sharp(qrPanel)
+      .resize({ height: targetH, fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+      .png().toBuffer();
+    const qrResizedMeta = await sharp(qrResized).metadata();
+
+    const totalW = campResizedMeta.width + qrResizedMeta.width;
+
+    // Create white canvas and place both side by side
+    await sharp({
+      create: { width: totalW, height: targetH, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } }
+    })
+    .composite([
+      { input: campResized, left: 0, top: 0 },
+      { input: qrResized, left: campResizedMeta.width, top: 0 }
+    ])
+    .png().toFile(filePath);
   } else {
-    // Plain QR card with number label using SVG overlay
-    const labelSvg = `<svg width="320" height="70">
-      <rect width="320" height="70" fill="white"/>
-      <text x="160" y="32" font-family="Arial" font-size="26" font-weight="bold" text-anchor="middle" fill="#2563eb">#${num}</text>
-      <text x="160" y="58" font-family="Arial" font-size="14" text-anchor="middle" fill="#6b6860">${name}</text>
-    </svg>`;
-
-    await sharp(qrBuf)
-      .extend({ bottom: 70, background: { r: 255, g: 255, b: 255, alpha: 1 } })
-      .composite([{ input: Buffer.from(labelSvg), top: 322, left: 0 }])
-      .png()
-      .toFile(filePath);
+    // Plain QR panel only
+    await sharp(qrPanel).png().toFile(filePath);
   }
 
   return `/qrcodes/${voter.id}.png`;
@@ -165,13 +165,13 @@ async function runCampaign(campaignId, host) {
 
   camp.status = 'running';
   camp.startedAt = camp.startedAt || new Date().toISOString();
+  camp.statusMessage = '';
   saveDB();
 
   let targets = camp.segmentId
     ? DB.voters.filter(v => (v.segments||[]).includes(camp.segmentId))
     : DB.voters;
 
-  // Skip already successfully sent
   targets = targets.filter(v => {
     const log = (camp.results||[]).find(r => r.voterId === v.id);
     return !log || !log.success;
@@ -179,44 +179,56 @@ async function runCampaign(campaignId, host) {
 
   camp.total = (camp.results||[]).filter(r => r.success).length + targets.length;
   JOBS[campaignId] = { running: true };
+  saveDB();
 
-  // Pre-generate all QR codes first (fast with sharp + caching)
-  if (camp.mode === 'mms') {
-    console.log(`Pre-generating ${targets.length} QR codes...`);
-    for (const voter of targets) {
-      try { await generateQR(voter, host); } catch(e) {}
-    }
-    console.log('QR pre-generation complete');
-  }
-
-  for (let i = 0; i < targets.length; i++) {
-    if (!JOBS[campaignId]?.running) {
-      camp.status = 'paused'; saveDB(); return;
-    }
-    const voter = targets[i];
-    let result;
-    try {
-      result = camp.mode === 'mms'
-        ? await sendOneMMS(voter, camp, host)
-        : await sendOneSMS(voter, camp);
-    } catch(e) {
-      result = { success: false, error: e.message };
+  const BATCH = 10; // send 10 at a time in parallel
+  for (let i = 0; i < targets.length; i += BATCH) {
+    if (!JOBS[campaignId] || !JOBS[campaignId].running) {
+      camp.status = 'paused';
+      camp.statusMessage = 'Paused at ' + i + ' of ' + targets.length;
+      saveDB(); return;
     }
 
-    camp.results = (camp.results||[]).filter(r => r.voterId !== voter.id);
-    camp.results.push({ voterId: voter.id, name: `${voter.firstName} ${voter.lastName}`, phone: voter.phone, success: result.success, error: result.error, sentAt: new Date().toISOString() });
+    const batch = targets.slice(i, i + BATCH);
+    camp.statusMessage = 'Sending ' + Math.min(i + BATCH, targets.length) + ' of ' + targets.length + '...';
 
-    if (result.success) {
-      voter.sentCampaigns = voter.sentCampaigns || [];
-      if (!voter.sentCampaigns.includes(campaignId)) voter.sentCampaigns.push(campaignId);
+    // Send batch in parallel
+    const batchResults = await Promise.all(batch.map(async voter => {
+      try {
+        const result = camp.mode === 'mms'
+          ? await sendOneMMS(voter, camp, host)
+          : await sendOneSMS(voter, camp);
+        return { voter, ...result };
+      } catch(e) {
+        return { voter, success: false, error: e.message };
+      }
+    }));
+
+    // Record results
+    for (const r of batchResults) {
+      camp.results = (camp.results||[]).filter(x => x.voterId !== r.voter.id);
+      camp.results.push({
+        voterId: r.voter.id,
+        name: r.voter.firstName + ' ' + r.voter.lastName,
+        phone: r.voter.phone,
+        success: r.success,
+        error: r.error||null,
+        sentAt: new Date().toISOString()
+      });
+      if (r.success) {
+        r.voter.sentCampaigns = r.voter.sentCampaigns || [];
+        if (!r.voter.sentCampaigns.includes(campaignId)) r.voter.sentCampaigns.push(campaignId);
+      }
     }
 
     camp.sentCount = (camp.results||[]).filter(r => r.success).length;
     saveDB();
-    await new Promise(r => setTimeout(r, 300));
+    // Small pause between batches to avoid rate limiting
+    await new Promise(r => setTimeout(r, 500));
   }
 
   camp.status = 'completed';
+  camp.statusMessage = 'Done — ' + camp.sentCount + ' sent';
   camp.completedAt = new Date().toISOString();
   delete JOBS[campaignId];
   saveDB();
@@ -265,7 +277,7 @@ app.post('/api/campaigns/:id/pause', (req, res) => {
 app.get('/api/campaigns/:id/status', (req, res) => {
   const camp = DB.campaigns.find(c => c.id === req.params.id);
   if (!camp) return res.status(404).json({ error: 'Not found' });
-  res.json({ id: camp.id, name: camp.name, status: camp.status, sentCount: camp.sentCount||0, total: camp.total||0, results: (camp.results||[]).slice(-20), createdAt: camp.createdAt, startedAt: camp.startedAt, completedAt: camp.completedAt });
+  res.json({ id: camp.id, name: camp.name, status: camp.status, statusMessage: camp.statusMessage||'', sentCount: camp.sentCount||0, total: camp.total||0, results: (camp.results||[]).slice(-20), createdAt: camp.createdAt, startedAt: camp.startedAt, completedAt: camp.completedAt });
 });
 
 app.post('/api/campaigns/:id/retry-failed', (req, res) => {

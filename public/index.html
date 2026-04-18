@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VoterQR — Campaign Platform</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -18,10 +17,21 @@
   --purple:#7c3aed;--purple-bg:#f5f3ff;--purple-b:#ddd6fe;
   --r:10px;--rs:6px;
 }
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;height:100vh;overflow:hidden}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px}
+
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:100%;max-width:360px;text-align:center}
+.login-logo{width:52px;height:52px;background:var(--blue);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 20px}
+.login-title{font-size:22px;font-weight:600;margin-bottom:6px}
+.login-sub{font-size:13px;color:var(--t2);margin-bottom:24px}
+.login-err{background:var(--red-bg);color:var(--red);border:1px solid var(--red-b);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px}
+
+/* ── APP SHELL ── */
+#app-screen{display:none;height:100vh;overflow:hidden}
 .shell{display:flex;height:100vh}
 .sb{width:56px;background:#1a1916;display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:4px;flex-shrink:0}
-.sb-logo{width:32px;height:32px;background:#2563eb;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px}
+.sb-logo{width:32px;height:32px;background:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px}
 .nb{width:38px;height:38px;border-radius:8px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;transition:background .15s;position:relative}
 .nb:hover{background:rgba(255,255,255,.1)}
 .nb.on{background:rgba(255,255,255,.18)}
@@ -34,6 +44,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .top-stats{display:flex;gap:20px}
 .ts{text-align:right}.ts-n{font-size:17px;font-weight:600;line-height:1}.ts-l{font-size:10px;color:var(--t2)}
 .page{flex:1;overflow-y:auto;padding:18px}
+
+/* ── COMPONENTS ── */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:15px;margin-bottom:12px}
 .card-hd{font-size:13px;font-weight:600;margin-bottom:12px}
 .inp{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--rs);background:var(--s2);color:var(--text);font-size:13px;outline:none;font-family:'DM Sans',sans-serif}
@@ -49,7 +61,6 @@ select.inp{cursor:pointer}
 .btn-green{background:var(--green);color:#fff;border-color:var(--green)}.btn-green:hover{opacity:.88}
 .btn-red{background:var(--red-bg);color:var(--red);border-color:var(--red-b)}
 .btn-amber{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-b)}
-.btn-purple{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-b)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
 .tag{display:inline-block;padding:1px 7px;border-radius:20px;font-size:10px;font-weight:500;font-family:'DM Mono',monospace}
 .tag-blue{background:var(--blue-bg);color:var(--blue)}
@@ -88,14 +99,7 @@ code{font-family:'DM Mono',monospace;font-size:11px;background:var(--s2);padding
 .slog{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;border-radius:var(--rs);margin-bottom:2px;font-size:12px}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
-
-.login-wrap{position:fixed;inset:0;background:#f2f1ec;display:flex;align-items:center;justify-content:center;z-index:1000}
-.login-box{background:#fff;border:1px solid #e4e2d9;border-radius:16px;padding:36px 32px;width:100%;max-width:380px;text-align:center}
-.login-logo{width:48px;height:48px;background:#2563eb;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 20px}
-.login-title{font-size:20px;font-weight:600;margin-bottom:4px}
-.login-sub{font-size:13px;color:#6b6860;margin-bottom:24px}
-.login-err{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:8px;padding:10px;font-size:13px;margin-bottom:14px;display:none}
-.toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:#fff;padding:10px 18px;border-radius:var(--rs);font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:#fff;padding:10px 18px;border-radius:var(--rs);font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
 .camp-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px}
 .camp-status-running{border-left:3px solid var(--blue)}
@@ -107,86 +111,111 @@ code{font-family:'DM Mono',monospace;font-size:11px;background:var(--s2);padding
 </style>
 </head>
 <body>
-<div class="shell" id="app" style="display:none">
-  <div class="sb">
-    <div class="sb-logo">🗳</div>
-    <div class="nb on" id="nb-voters" onclick="go('voters')"><span>👥</span><span class="tip">Voters</span></div>
-    <div class="nb" id="nb-segments" onclick="go('segments')"><span>🗂</span><span class="tip">Segments</span></div>
-    <div class="sb-sep"></div>
-    <div class="nb" id="nb-campaigns" onclick="go('campaigns')"><span>📤</span><span class="tip">Campaigns</span></div>
-    <div class="nb" id="nb-checkin" onclick="go('checkin')"><span>✅</span><span class="tip">Check-In</span></div>
-    <div class="nb" id="nb-followup" onclick="go('followup')"><span>🗳</span><span class="tip">Early Vote Follow-Up</span></div>
-    <div class="sb-sep"></div>
-    <div class="nb" id="nb-dashboard" onclick="go('dashboard')"><span>📊</span><span class="tip">Dashboard</span></div>
-    <div class="nb" id="nb-settings" onclick="go('settings')"><span>⚙️</span><span class="tip">Settings</span></div>
-  </div>
-  <div class="main">
-    <div class="topbar">
-      <div><div class="pg-t" id="pg-t">Voters</div><div style="font-size:11px;color:var(--t2)" id="pg-s"></div></div>
-      <div style="display:flex;align-items:center;gap:12px"><div class="top-stats" id="top-stats"></div><button class="btn btn-red" style="font-size:11px;padding:4px 10px" onclick="if(confirm('Log out?'))logout()">Log out</button></div>
-    </div>
-    <div class="page" id="page"><div class="empty"><div class="spin"></div></div></div>
-  </div>
-</div>
 
-<div class="login-wrap" id="login-wrap" style="display:none">
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
   <div class="login-box">
     <div class="login-logo">🗳</div>
     <div class="login-title">VoterQR</div>
-    <div class="login-sub">Sign in to access the campaign platform</div>
-    <div class="login-err" id="l-err"></div>
+    <div class="login-sub">Campaign management platform</div>
+    <div class="login-err" id="l-err" style="display:none"></div>
     <div style="margin-bottom:10px;text-align:left">
       <div class="lbl">Username</div>
-      <input class="inp" id="l-user" placeholder="admin" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()">
+      <input class="inp" id="l-user" placeholder="admin" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()">
     </div>
     <div style="margin-bottom:18px;text-align:left">
       <div class="lbl">Password</div>
-      <input type="password" class="inp" id="l-pass" placeholder="••••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+      <input type="password" class="inp" id="l-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
-    <button class="btn btn-blue" style="width:100%;padding:10px;font-size:14px" onclick="doLogin()">Sign in</button>
+    <button class="btn btn-blue" style="width:100%;padding:11px;font-size:14px" onclick="doLogin()">Sign in</button>
   </div>
 </div>
-<div class="toast" id="toast"></div>
-<script>
-var CUR='voters'; var AUTH_TOKEN=localStorage.getItem('vqr_token')||'';
-var DATA={voters:[],segments:[],campaigns:[],settings:{eventName:'Campaign Event 2026',checkinUrl:window.location.origin,ezUser:''},hasCampaignImage:false};
-var CI_RESULT=null, EZ_PASS='';
-var PANELS={importOpen:false,addVoter:false,addSeg:false,addCamp:false};
-var SEG_COLORS=['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#65a30d'];
-var POLL_TIMERS={};
 
+<!-- APP -->
+<div id="app-screen">
+  <div class="shell">
+    <div class="sb">
+      <div class="sb-logo">🗳</div>
+      <div class="nb on" id="nb-voters" onclick="go('voters')"><span>👥</span><span class="tip">Voters</span></div>
+      <div class="nb" id="nb-segments" onclick="go('segments')"><span>🗂</span><span class="tip">Segments</span></div>
+      <div class="sb-sep"></div>
+      <div class="nb" id="nb-campaigns" onclick="go('campaigns')"><span>📤</span><span class="tip">Campaigns</span></div>
+      <div class="nb" id="nb-checkin" onclick="go('checkin')"><span>✅</span><span class="tip">Check-In</span></div>
+      <div class="nb" id="nb-followup" onclick="go('followup')"><span>🗳</span><span class="tip">Early Vote Follow-Up</span></div>
+      <div class="sb-sep"></div>
+      <div class="nb" id="nb-dashboard" onclick="go('dashboard')"><span>📊</span><span class="tip">Dashboard</span></div>
+      <div class="nb" id="nb-settings" onclick="go('settings')"><span>⚙️</span><span class="tip">Settings</span></div>
+    </div>
+    <div class="main">
+      <div class="topbar">
+        <div><div class="pg-t" id="pg-t">Voters</div><div style="font-size:11px;color:var(--t2)" id="pg-s"></div></div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="top-stats" id="top-stats"></div>
+          <button class="btn btn-red" style="font-size:11px;padding:4px 10px" onclick="doLogout()">Log out</button>
+        </div>
+      </div>
+      <div class="page" id="page"><div class="empty"><div class="spin"></div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+var TOKEN = localStorage.getItem('vqr_token') || '';
+var CUR = 'voters';
+var DATA = { voters:[], segments:[], campaigns:[], settings:{eventName:'Campaign Event 2026',checkinUrl:window.location.origin,ezUser:''}, hasCampaignImage:false };
+var CI_RESULT = null, EZ_PASS = '';
+var PANELS = { importOpen:false, addVoter:false, addSeg:false, addCamp:false };
+var SEG_COLORS = ['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#65a30d'];
+var POLL_TIMERS = {};
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
 function toast(msg,ms){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},ms||2500)}
-function uid(){return(Date.now().toString(36)+Math.random().toString(36).substr(2,4)).toUpperCase()}
+function numStr(n){var s=String(n||0);return s.length<3?('000'+s).slice(-3):s}
 function initials(v){return((v.firstName||'?')[0]+(v.lastName||'?')[0]).toUpperCase()}
 function segById(id){return DATA.segments.find(function(s){return s.id===id})}
-function numStr(n){return n<10?'00'+n:n<100?'0'+n:''+n}
 
-async function api(method,path,body){
-  var opts={method:method,headers:{'Content-Type':'application/json','x-auth-token':AUTH_TOKEN}};
-  if(body)opts.body=JSON.stringify(body);
-  var r=await fetch(path,opts);
-  if(r.status===401){logout();return{error:'Unauthorized'};}
-  return r.json();
-}
-function logout(){
-  AUTH_TOKEN='';localStorage.removeItem('vqr_token');
-  document.getElementById('login-wrap').style.display='flex';
-  document.getElementById('app').style.display='none';
-}
+// ── AUTH ──────────────────────────────────────────────────────────────────────
 async function doLogin(){
   var user=document.getElementById('l-user').value.trim();
   var pass=document.getElementById('l-pass').value.trim();
   var err=document.getElementById('l-err');
   err.style.display='none';
   if(!user||!pass){err.textContent='Enter username and password';err.style.display='block';return;}
-  var r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
-  var data=await r.json();
-  if(!r.ok){err.textContent=data.error||'Login failed';err.style.display='block';return;}
-  AUTH_TOKEN=data.token;
-  localStorage.setItem('vqr_token',AUTH_TOKEN);
-  document.getElementById('login-wrap').style.display='none';
-  document.getElementById('app').style.display='flex';
+  try{
+    var r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
+    var data=await r.json();
+    if(!r.ok){err.textContent=data.error||'Login failed';err.style.display='block';return;}
+    TOKEN=data.token;
+    localStorage.setItem('vqr_token',TOKEN);
+    showApp();
+  }catch(e){err.textContent='Connection error: '+e.message;err.style.display='block';}
+}
+
+function doLogout(){
+  if(!confirm('Log out?'))return;
+  fetch('/api/logout',{method:'POST',headers:{'x-auth-token':TOKEN}}).catch(function(){});
+  TOKEN='';localStorage.removeItem('vqr_token');
+  document.getElementById('app-screen').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('l-pass').value='';
+}
+
+function showApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
   loadAll();
+}
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function api(method,path,body){
+  var opts={method:method,headers:{'Content-Type':'application/json','x-auth-token':TOKEN}};
+  if(body)opts.body=JSON.stringify(body);
+  var r=await fetch(path,opts);
+  if(r.status===401){doLogout();return{error:'Session expired'};}
+  return r.json();
 }
 async function GET(p){return api('GET',p)}
 async function POST(p,b){return api('POST',p,b)}
@@ -194,22 +223,17 @@ async function PUT(p,b){return api('PUT',p,b)}
 async function DEL(p){return api('DELETE',p)}
 
 async function loadAll(){
-  if(!AUTH_TOKEN){
-    document.getElementById('login-wrap').style.display='flex';
-    document.getElementById('app').style.display='none';
-    return;
-  }
-  var [v,s,c,st,ci]=await Promise.all([
-    GET('/api/voters'),GET('/api/segments'),GET('/api/campaigns'),
-    GET('/api/settings'),GET('/api/campaign-image')
-  ]);
-  DATA.voters=v||[];DATA.segments=s||[];DATA.campaigns=c||[];
-  DATA.settings=Object.assign(DATA.settings,st||{});
-  DATA.hasCampaignImage=(ci&&ci.hasImage)||false;
-  if(!DATA.settings.checkinUrl)DATA.settings.checkinUrl=window.location.origin;
-  render();
-  // Resume polling for any running campaigns
-  (DATA.campaigns||[]).filter(function(c){return c.status==='running'}).forEach(function(c){startPoll(c.id)});
+  try{
+    var results=await Promise.all([GET('/api/voters'),GET('/api/segments'),GET('/api/campaigns'),GET('/api/settings'),GET('/api/campaign-image')]);
+    DATA.voters=results[0]||[];
+    DATA.segments=results[1]||[];
+    DATA.campaigns=results[2]||[];
+    DATA.settings=Object.assign(DATA.settings,results[3]||{});
+    DATA.hasCampaignImage=(results[4]&&results[4].hasImage)||false;
+    if(!DATA.settings.checkinUrl)DATA.settings.checkinUrl=window.location.origin;
+    render();
+    (DATA.campaigns||[]).filter(function(c){return c.status==='running'}).forEach(function(c){startPoll(c.id)});
+  }catch(e){toast('Load error: '+e.message);}
 }
 
 function go(tab){
@@ -232,7 +256,7 @@ function parseCSVText(txt){
   var lines=txt.trim().split('\n').filter(function(l){return l.trim()});
   var res=[];
   lines.forEach(function(line){
-    if(line.toLowerCase().includes('phone')||line.toLowerCase().includes('first'))return;
+    if(line.toLowerCase().includes('first')||line.toLowerCase().includes('phone'))return;
     var p=line.split(',').map(function(x){return x.trim().replace(/^"|"$/g,'')});
     if(p.length>=3)res.push({firstName:p[0],lastName:p[1],phone:p[2]});
     else if(p.length===2){var n=p[0].split(' ');res.push({firstName:n[0]||'',lastName:n.slice(1).join(' ')||'',phone:p[1]});}
@@ -243,25 +267,23 @@ function parseCSVText(txt){
 
 async function doImportCSV(){
   var txt=document.getElementById('csv-in').value;
-  var seg=document.getElementById('import-seg').value;
+  var seg=document.getElementById('import-seg')?document.getElementById('import-seg').value:'';
   var parsed=parseCSVText(txt);
   if(!parsed.length){toast('No valid rows found');return;}
   var r=await POST('/api/voters/import',{voters:parsed,segmentId:seg||null});
-  PANELS.importOpen=false;
-  await loadAll();
+  PANELS.importOpen=false;await loadAll();
   toast('Added '+r.added+(r.skipped?' ('+r.skipped+' duplicates skipped)':''));
 }
 
 async function doImportFile(file){
   var reader=new FileReader();
   reader.onload=async function(e){
-    document.getElementById('csv-in').value=e.target.result;
     var seg=document.getElementById('import-seg')?document.getElementById('import-seg').value:'';
     var parsed=parseCSVText(e.target.result);
-    if(!parsed.length){toast('No valid rows found in file');return;}
+    if(!parsed.length){toast('No valid rows found');return;}
     var r=await POST('/api/voters/import',{voters:parsed,segmentId:seg||null});
     PANELS.importOpen=false;await loadAll();
-    toast('Added '+r.added+(r.skipped?' ('+r.skipped+' duplicates skipped)':''));
+    toast('Added '+r.added+(r.skipped?' ('+r.skipped+' skipped)':''));
   };
   reader.readAsText(file);
 }
@@ -272,8 +294,7 @@ function voterSegTags(voter){
   return voter.segments.map(function(sid){var s=segById(sid);if(!s)return'';return'<span class="tag" style="background:'+s.color+'22;color:'+s.color+';border:1px solid '+s.color+'44">'+s.name+'</span>';}).join(' ');
 }
 function fuTag(v){
-  if(!v.followUp)return'<span class="tag tag-gray">pending</span>';
-  var st=v.followUp.status||'pending';
+  var st=(v.followUp&&v.followUp.status)||'pending';
   var m={pending:'tag-amber',contacted:'tag-blue',voted:'tag-green',noanswer:'tag-red'};
   var l={pending:'Pending',contacted:'Contacted',voted:'Voted ✓',noanswer:'No Answer'};
   return'<span class="tag '+(m[st]||'tag-gray')+'">'+(l[st]||st)+'</span>';
@@ -289,14 +310,14 @@ async function doAddVoter(){
   document.getElementById('a-fn').value='';document.getElementById('a-ln').value='';document.getElementById('a-ph').value='';
   await loadAll();toast('Voter added');
 }
-async function doRemoveVoter(id){if(!confirm('Remove voter?'))return;await DEL('/api/voters/'+id);await loadAll();}
-async function doClearAll(){if(!confirm('Delete ALL '+DATA.voters.length+' voters?'))return;await DEL('/api/voters/all');await loadAll();}
+async function doRemoveVoter(id){if(!confirm('Remove this voter?'))return;await DEL('/api/voters/'+id);await loadAll();}
+async function doClearAll(){if(!confirm('Delete ALL '+DATA.voters.length+' voters? Cannot be undone.'))return;await DEL('/api/voters/all');await loadAll();}
 
 function renderVoters(){
   var search=(document.getElementById('v-s')?document.getElementById('v-s').value:'').toLowerCase();
   var segF=(document.getElementById('v-seg')?document.getElementById('v-seg').value:'');
   var filtered=DATA.voters.filter(function(v){
-    return(v.firstName+' '+v.lastName+' '+v.phone+(v.number||'')).toLowerCase().includes(search)&&(!segF||(v.segments||[]).includes(segF));
+    return(v.firstName+' '+v.lastName+' '+v.phone+' '+(v.number||'')).toLowerCase().includes(search)&&(!segF||(v.segments||[]).includes(segF));
   });
   var h='<div class="row" style="margin-bottom:12px">';
   h+='<input class="inp" id="v-s" placeholder="Search name, phone, or #number..." value="'+search+'" oninput="render()" style="flex:2;min-width:130px">';
@@ -305,17 +326,13 @@ function renderVoters(){
   h+='<button class="btn btn-blue" onclick="PANELS.addVoter=!PANELS.addVoter;render()">+ Add</button>';
   if(DATA.voters.length)h+='<button class="btn btn-red" onclick="doClearAll()">Clear all</button>';
   h+='</div>';
-
   if(PANELS.importOpen){
     h+='<div class="card"><div class="card-hd">Import voters</div>';
-    // Drag & drop zone
-    h+='<div class="import-drop" id="drop-zone" onclick="document.getElementById(\'file-in\').click()" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="event.preventDefault();this.classList.remove(\'over\');doImportFile(event.dataTransfer.files[0])">';
-    h+='<div style="font-size:22px;margin-bottom:6px">📂</div>';
-    h+='<div style="font-weight:500;margin-bottom:4px">Drop CSV file here or click to browse</div>';
-    h+='<div style="font-size:11px;color:var(--t2)">Columns: First Name, Last Name, Phone — duplicates auto-skipped</div>';
-    h+='</div>';
+    h+='<div class="import-drop" onclick="document.getElementById(\'file-in\').click()" ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="event.preventDefault();this.classList.remove(\'over\');doImportFile(event.dataTransfer.files[0])">';
+    h+='<div style="font-size:22px;margin-bottom:6px">📂</div><div style="font-weight:500;margin-bottom:4px">Drop CSV file here or click to browse</div>';
+    h+='<div style="font-size:11px;color:var(--t2)">Columns: First Name, Last Name, Phone — duplicates auto-skipped</div></div>';
     h+='<input type="file" id="file-in" accept=".csv,.txt" style="display:none" onchange="doImportFile(this.files[0])">';
-    h+='<div style="margin:10px 0;text-align:center;font-size:11px;color:var(--t3)">— or paste CSV below —</div>';
+    h+='<div style="margin:10px 0;text-align:center;font-size:11px;color:var(--t3)">— or paste below —</div>';
     h+='<textarea class="inp" id="csv-in" style="min-height:90px;font-family:DM Mono,monospace;font-size:12px;margin-bottom:8px" placeholder="Jane,Doe,+15551234567&#10;John,Smith,+15559876543"></textarea>';
     h+='<div class="row"><div class="lbl" style="line-height:2.4;margin-right:4px">Assign to:</div><select class="inp" id="import-seg" style="width:auto">'+segOpts('')+'</select></div>';
     h+='<div class="row" style="margin-top:8px"><button class="btn btn-green" onclick="doImportCSV()">Import</button><button class="btn" onclick="PANELS.importOpen=false;render()">Cancel</button></div></div>';
@@ -330,21 +347,20 @@ function renderVoters(){
     h+='<button class="btn" onclick="PANELS.addVoter=false;render()">✕</button></div></div>';
   }
   if(!DATA.voters.length)return h+'<div class="empty"><div class="empty-t">No voters yet</div>Import a CSV or add manually.</div>';
-  h+='<div class="tw"><div class="scroll"><table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Segments</th><th>Event</th><th>Texts sent</th><th></th></tr></thead><tbody>';
+  h+='<div class="tw"><div class="scroll"><table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Segments</th><th>Event</th><th>Texts</th><th></th></tr></thead><tbody>';
   filtered.forEach(function(v){
-    var sentCount=(v.sentCampaigns||[]).length;
+    var sent=(v.sentCampaigns||[]).length;
     h+='<tr>';
     h+='<td style="font-family:DM Mono,monospace;font-weight:600;color:var(--blue)">#'+numStr(v.number||0)+'</td>';
     h+='<td style="font-weight:500">'+v.firstName+' '+v.lastName+'</td>';
     h+='<td style="color:var(--t2);font-family:DM Mono,monospace;font-size:11px">'+v.phone+'</td>';
     h+='<td>'+voterSegTags(v)+'</td>';
     h+='<td>'+(v.checkedIn?'<span class="tag tag-green">Attended</span>':'<span class="tag tag-gray">Pending</span>')+'</td>';
-    h+='<td>'+(sentCount?'<span class="tag tag-blue">'+sentCount+' campaign'+(sentCount!==1?'s':'')+'</span>':'<span class="tag tag-gray">None</span>')+'</td>';
+    h+='<td>'+(sent?'<span class="tag tag-blue">'+sent+'</span>':'<span class="tag tag-gray">0</span>')+'</td>';
     h+='<td><button class="btn btn-red" style="padding:2px 7px;font-size:11px" onclick="doRemoveVoter(\''+v.id+'\')">✕</button></td></tr>';
   });
   if(!filtered.length)h+='<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:20px">No results</td></tr>';
-  h+='</tbody></table></div></div>';
-  h+='<div style="font-size:11px;color:var(--t3);margin-top:6px">'+filtered.length+' of '+DATA.voters.length+' voters</div>';
+  h+='</tbody></table></div></div><div style="font-size:11px;color:var(--t3);margin-top:6px">'+filtered.length+' of '+DATA.voters.length+' voters</div>';
   return h;
 }
 
@@ -382,11 +398,11 @@ function renderSegments(){
   h+='</div>';
   if(PANELS.addSeg){
     h+='<div class="card"><div class="card-hd">New segment</div><div class="row">';
-    h+='<input class="inp" id="seg-n" placeholder="e.g. No Shows Week 2" style="flex:1" onkeydown="if(event.key===\'Enter\')doAddSeg()">';
+    h+='<input class="inp" id="seg-n" placeholder="Segment name" style="flex:1" onkeydown="if(event.key===\'Enter\')doAddSeg()">';
     h+='<button class="btn btn-green" onclick="doAddSeg()">Create</button>';
     h+='<button class="btn" onclick="PANELS.addSeg=false;render()">✕</button></div></div>';
   }
-  if(!DATA.segments.length)return h+'<div class="empty"><div class="empty-t">No segments yet</div></div>';
+  if(!DATA.segments.length)return h+'<div class="empty"><div class="empty-t">No segments yet</div>Create groups to organize voters.</div>';
   DATA.segments.forEach(function(seg){
     var members=DATA.voters.filter(function(v){return(v.segments||[]).includes(seg.id)});
     var ci=members.filter(function(v){return v.checkedIn}).length;
@@ -424,11 +440,10 @@ function startPoll(id){
     var status=await GET('/api/campaigns/'+id+'/status').catch(function(){return null;});
     if(!status)return;
     var camp=DATA.campaigns.find(function(c){return c.id===id});
-    if(camp){Object.assign(camp,status);}else{DATA.campaigns.push(status);}
-    else{DATA.campaigns.push(status);}
+    if(camp)Object.assign(camp,status);else DATA.campaigns.push(status);
     if(status.status!=='running'){clearInterval(POLL_TIMERS[id]);delete POLL_TIMERS[id];}
     render();
-  },1500);
+  },2000);
 }
 
 async function doCreateCampaign(){
@@ -441,19 +456,16 @@ async function doCreateCampaign(){
   EZ_PASS=pass;
   var r=await POST('/api/campaigns',{name:name,segmentId:seg||null,message:msg,mode:mode,ezUser:DATA.settings.ezUser,ezPass:pass});
   if(r.error){toast('Error: '+r.error);return;}
-  PANELS.addCamp=false;await loadAll();
-  toast('Campaign "'+name+'" created');
+  PANELS.addCamp=false;await loadAll();toast('Campaign "'+name+'" created');
 }
 
 async function doStartCampaign(id){
-  var pass=EZ_PASS||prompt('Enter your EZTexting password to start:');
+  var pass=EZ_PASS||prompt('Enter EZTexting password:');
   if(!pass)return;EZ_PASS=pass;
-  var r=await POST('/api/campaigns/'+id+'/start',{ezPass:pass});
-  if(r.error){toast('Error: '+r.error);return;}
-  // update local status
+  await POST('/api/campaigns/'+id+'/start',{ezPass:pass});
   var camp=DATA.campaigns.find(function(c){return c.id===id});
   if(camp)camp.status='running';
-  startPoll(id);render();toast('Campaign started — sending on server');
+  startPoll(id);render();toast('Campaign started on server — safe to close browser');
 }
 
 async function doPauseCampaign(id){
@@ -461,21 +473,20 @@ async function doPauseCampaign(id){
   var camp=DATA.campaigns.find(function(c){return c.id===id});
   if(camp)camp.status='paused';
   clearInterval(POLL_TIMERS[id]);delete POLL_TIMERS[id];
-  render();toast('Campaign paused');
+  render();toast('Paused');
 }
 
 async function doRetryFailed(id){
   var pass=EZ_PASS||prompt('Enter EZTexting password:');
   if(!pass)return;EZ_PASS=pass;
-  var r=await POST('/api/campaigns/'+id+'/retry-failed',{ezPass:pass});
-  if(r.error){toast('Error: '+r.error);return;}
+  await POST('/api/campaigns/'+id+'/retry-failed',{ezPass:pass});
   var camp=DATA.campaigns.find(function(c){return c.id===id});
   if(camp)camp.status='running';
   startPoll(id);render();toast('Retrying failed sends...');
 }
 
 async function doDeleteCampaign(id){
-  if(!confirm('Delete this campaign?'))return;
+  if(!confirm('Delete this campaign and all its history?'))return;
   await DEL('/api/campaigns/'+id);await loadAll();
 }
 
@@ -490,54 +501,46 @@ function renderCampaigns(){
     var n=DATA.voters.filter(function(v){return(v.segments||[]).includes(s.id)}).length;
     return'<option value="'+s.id+'">'+s.name+' ('+n+')</option>';
   }).join('');
-  var h='<div class="row" style="margin-bottom:12px">';
-  h+='<button class="btn btn-blue" onclick="PANELS.addCamp=!PANELS.addCamp;render()">+ New campaign</button>';
-  h+='</div>';
-
+  var h='<div class="row" style="margin-bottom:12px"><button class="btn btn-blue" onclick="PANELS.addCamp=!PANELS.addCamp;render()">+ New campaign</button></div>';
   if(PANELS.addCamp){
     h+='<div class="card"><div class="card-hd">Create campaign</div>';
     h+='<div class="row" style="margin-bottom:10px">';
-    h+='<div style="flex:1"><div class="lbl">Campaign name</div><input class="inp" id="c-name" placeholder="e.g. Event Reminder Week 1"></div>';
+    h+='<div style="flex:2"><div class="lbl">Campaign name</div><input class="inp" id="c-name" placeholder="e.g. Event Reminder — Week 1"></div>';
     h+='<div style="flex:1"><div class="lbl">Send to</div><select class="inp" id="c-seg">'+segOp+'</select></div>';
-    h+='<div style="flex:0 0 auto"><div class="lbl">Type</div><select class="inp" id="c-mode"><option value="mms">MMS (QR image)</option><option value="sms">SMS (link)</option></select></div>';
+    h+='<div style="flex:0 0 auto"><div class="lbl">Type</div><select class="inp" id="c-mode"><option value="mms">MMS (QR image)</option><option value="sms">SMS (link only)</option></select></div>';
     h+='</div>';
-    h+='<div style="margin-bottom:10px"><div class="lbl">Message — variables: <code>{first_name}</code> <code>{last_name}</code> <code>{event_name}</code> <code>{number}</code></div>';
-    h+='<textarea class="inp" id="c-msg" style="margin-top:4px">Hi {first_name}! Your check-in QR code for {event_name} is attached. Your voter number is {number}. Show it at the door!</textarea></div>';
-    h+='<div style="margin-bottom:10px"><div class="lbl">EZTexting password</div><input type="password" class="inp" id="c-pass" value="'+EZ_PASS+'" placeholder="Stored securely per session"></div>';
-    h+='<div class="row"><button class="btn btn-green" onclick="doCreateCampaign()">Create campaign</button><button class="btn" onclick="PANELS.addCamp=false;render()">Cancel</button></div>';
-    h+='</div>';
+    h+='<div style="margin-bottom:10px"><div class="lbl">Message — <code>{first_name}</code> <code>{last_name}</code> <code>{event_name}</code> <code>{number}</code></div>';
+    h+='<textarea class="inp" id="c-msg" style="margin-top:4px">Hi {first_name}! Your check-in QR for {event_name} is attached. Your voter number is {number}. Show it at the door!</textarea></div>';
+    h+='<div style="margin-bottom:10px"><div class="lbl">EZTexting password</div><input type="password" class="inp" id="c-pass" value="'+EZ_PASS+'" placeholder="Stored per session only"></div>';
+    h+='<div class="row"><button class="btn btn-green" onclick="doCreateCampaign()">Create campaign</button><button class="btn" onclick="PANELS.addCamp=false;render()">Cancel</button></div></div>';
   }
-
-  if(!DATA.campaigns||!DATA.campaigns.length)return h+'<div class="empty"><div class="empty-t">No campaigns yet</div>Create a campaign to start sending texts.</div>';
-
+  if(!DATA.campaigns||!DATA.campaigns.length)return h+'<div class="empty"><div class="empty-t">No campaigns yet</div>Create a campaign to send texts to voters.</div>';
   DATA.campaigns.slice().reverse().forEach(function(camp){
     var sent=camp.sentCount||0,total=camp.total||0,failed=((camp.results||[]).filter(function(r){return!r.success}).length);
     var pct=total?Math.round(sent/total*100):0;
     var isRunning=camp.status==='running';
+    var segName=camp.segmentId?(DATA.segments.find(function(s){return s.id===camp.segmentId})||{name:'Deleted segment'}).name:'All voters';
     h+='<div class="camp-card camp-status-'+camp.status+'">';
     h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">';
     h+='<div><div style="font-weight:600;font-size:14px">'+camp.name+'</div>';
-    h+='<div style="font-size:12px;color:var(--t2);margin-top:2px">'+(camp.segmentId?(DATA.segments.find(function(s){return s.id===camp.segmentId})||{name:'Deleted segment'}).name:'All voters')+' · '+(camp.mode||'mms').toUpperCase()+'</div>';
-    h+='</div>';
+    h+='<div style="font-size:12px;color:var(--t2);margin-top:2px">'+segName+' · '+(camp.mode||'mms').toUpperCase()+'</div></div>';
     h+='<div style="display:flex;gap:6px;align-items:center">'+campStatusTag(camp.status);
-    if(camp.status==='running')h+='<button class="btn btn-amber" style="font-size:11px" onclick="doPauseCampaign(\''+camp.id+'\')">Pause</button>';
+    if(isRunning)h+='<button class="btn btn-amber" style="font-size:11px" onclick="doPauseCampaign(\''+camp.id+'\')">Pause</button>';
     if(camp.status==='ready'||camp.status==='paused')h+='<button class="btn btn-green" style="font-size:11px" onclick="doStartCampaign(\''+camp.id+'\')">'+( camp.status==='paused'?'Resume':'Start')+'</button>';
     if(camp.status==='completed'&&failed>0)h+='<button class="btn btn-amber" style="font-size:11px" onclick="doRetryFailed(\''+camp.id+'\')">Retry '+failed+' failed</button>';
     h+='<button class="btn btn-red" style="font-size:11px" onclick="doDeleteCampaign(\''+camp.id+'\')">Delete</button>';
     h+='</div></div>';
-    // Progress bar
     h+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">';
-    var smsg=camp.statusMessage||'';h+='<span style="color:var(--t2)">'+(isRunning?'<span class="spin"></span>':'')+sent+' sent of '+total+(smsg?' · '+smsg:'')+'</span>';
+    h+='<span style="color:var(--t2)">'+(isRunning?'<span class="spin"></span>':'')+sent+' sent of '+total+(camp.statusMessage?' · '+camp.statusMessage:'')+'</span>';
     h+='<span style="font-weight:600;color:var(--green)">'+pct+'%</span></div>';
     h+='<div class="prog"><div class="pf" style="width:'+pct+'%;background:var(--green)"></div></div>';
     if(failed)h+='<div style="font-size:11px;color:var(--red);margin-top:4px">'+failed+' failed</div>';
-    // Recent results
     if(camp.results&&camp.results.length){
       var recent=(camp.results||[]).slice(-5).reverse();
       h+='<div style="margin-top:10px">';
       recent.forEach(function(r){
         h+='<div class="slog" style="background:var('+(r.success?'--green-bg':'--red-bg')+');color:var('+(r.success?'--green':'--red')+')">';
-        h+='<span>'+r.name+' · '+r.phone+'</span><span style="font-size:11px;font-family:DM Mono,monospace">'+( r.success?'Sent':r.error||'Failed')+'</span></div>';
+        h+='<span>'+r.name+' · '+r.phone+'</span><span style="font-family:DM Mono,monospace;font-size:11px">'+( r.success?'Sent':r.error||'Failed')+'</span></div>';
       });
       h+='</div>';
     }
@@ -567,7 +570,7 @@ function renderCheckIn(){
   var recent=DATA.voters.filter(function(v){return v.checkedIn}).sort(function(a,b){return new Date(b.checkInTime)-new Date(a.checkInTime)}).slice(0,15);
   var r=CI_RESULT;
   var h='<div style="max-width:560px;margin:0 auto">';
-  h+='<div class="card"><div class="card-hd">Scan or enter voter ID</div>';
+  h+='<div class="card"><div class="card-hd">Check in a voter</div>';
   h+='<div style="font-size:12px;color:var(--t2);margin-bottom:10px">Enter voter ID, #number, or paste QR URL — press Enter</div>';
   h+='<div class="row"><input class="inp" id="ci-in" placeholder="Voter ID, #42, or QR URL..." onkeydown="if(event.key===\'Enter\')doCheckIn()" style="flex:1;padding:11px;font-size:15px;font-family:DM Mono,monospace" autofocus>';
   h+='<button class="btn btn-green" onclick="doCheckIn()" style="padding:11px 18px;font-size:14px">Check In</button></div></div>';
@@ -584,8 +587,7 @@ function renderCheckIn(){
     h+='</div></div>';
   }
   if(recent.length){
-    h+='<div class="card"><div class="card-hd">Recent check-ins ('+recent.length+')</div>';
-    h+='<table class="tbl"><tbody>';
+    h+='<div class="card"><div class="card-hd">Recent check-ins</div><table class="tbl"><tbody>';
     recent.forEach(function(v){
       h+='<tr><td style="font-family:DM Mono,monospace;color:var(--blue);font-weight:600">#'+numStr(v.number||0)+'</td>';
       h+='<td style="font-weight:500">'+v.firstName+' '+v.lastName+'</td>';
@@ -605,7 +607,6 @@ async function doSaveNote(id){
   await PUT('/api/voters/'+id+'/followup',{notes:el.value});
   var btn=document.getElementById('nsave-'+id);if(btn){btn.textContent='Saved!';setTimeout(function(){btn.textContent='Save note';},1500);}
 }
-
 function renderFollowUp(){
   var checked=DATA.voters.filter(function(v){return v.checkedIn});
   if(!checked.length)return'<div class="empty"><div class="empty-t">No check-ins yet</div>Voters appear here after checking in at the event.</div>';
@@ -644,7 +645,7 @@ function renderFollowUp(){
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function renderDashboard(){
   var t=DATA.voters.length;
-  if(!t)return'<div class="empty"><div class="empty-t">No data yet</div></div>';
+  if(!t)return'<div class="empty"><div class="empty-t">No data yet</div>Add voters to see stats.</div>';
   var ci=DATA.voters.filter(function(v){return v.checkedIn}).length;
   var voted=DATA.voters.filter(function(v){return v.followUp&&v.followUp.status==='voted'}).length;
   var contacted=DATA.voters.filter(function(v){return v.followUp&&v.followUp.status==='contacted'}).length;
@@ -660,13 +661,14 @@ function renderDashboard(){
       var sv=DATA.voters.filter(function(v){return(v.segments||[]).includes(seg.id)});
       var sci=sv.filter(function(v){return v.checkedIn}).length;
       var svoted=sv.filter(function(v){return v.followUp&&v.followUp.status==='voted'}).length;
-      h+='<tr><td><span class="seg-dot" style="background:'+seg.color+'"></span>'+seg.name+'</td><td>'+sv.length+'</td><td>'+sci+'</td><td>'+svoted+'</td><td><span class="tag '+(sv.length&&Math.round(svoted/sv.length*100)>50?'tag-green':'tag-gray')+'">'+(sv.length?Math.round(svoted/sv.length*100):0)+'%</span></td></tr>';
+      var rate=sv.length?Math.round(svoted/sv.length*100):0;
+      h+='<tr><td><span class="seg-dot" style="background:'+seg.color+'"></span>'+seg.name+'</td><td>'+sv.length+'</td><td>'+sci+'</td><td>'+svoted+'</td><td><span class="tag '+(rate>50?'tag-green':'tag-gray')+'">'+rate+'%</span></td></tr>';
     });
     h+='</tbody></table></div>';
   }
   if(DATA.campaigns&&DATA.campaigns.length){
     h+='<div class="card"><div class="card-hd">Campaigns</div><table class="tbl"><thead><tr><th>Name</th><th>Status</th><th>Sent</th><th>Total</th></tr></thead><tbody>';
-    DATA.campaigns.forEach(function(c){h+='<tr><td style="font-weight:500">'+c.name+'</td><td>'+campStatusTag(c.status)+'</td><td>'+( c.sentCount||0)+'</td><td>'+(c.total||0)+'</td></tr>';});
+    DATA.campaigns.forEach(function(c){h+='<tr><td style="font-weight:500">'+c.name+'</td><td>'+campStatusTag(c.status)+'</td><td>'+(c.sentCount||0)+'</td><td>'+(c.total||0)+'</td></tr>';});
     h+='</tbody></table></div>';
   }
   return h;
@@ -677,6 +679,16 @@ async function doSaveSettings(){
   var s={eventName:document.getElementById('s-ev').value,checkinUrl:document.getElementById('s-url').value,ezUser:document.getElementById('s-eu').value};
   await PUT('/api/settings',s);DATA.settings=Object.assign(DATA.settings,s);toast('Settings saved');
 }
+async function doChangeCredentials(){
+  var user=document.getElementById('s-auser').value.trim();
+  var pass=document.getElementById('s-apass').value.trim();
+  if(!user||!pass){toast('Enter both username and new password');return;}
+  await PUT('/api/settings',{adminUser:user,adminPass:pass});
+  toast('Login updated — signing you out now');
+  document.getElementById('s-auser').value='';
+  document.getElementById('s-apass').value='';
+  setTimeout(doLogout,1500);
+}
 async function doUploadCampaignImage(){
   var inp=document.getElementById('ci-file');
   if(!inp||!inp.files||!inp.files[0]){toast('Pick an image first');return;}
@@ -684,7 +696,7 @@ async function doUploadCampaignImage(){
   reader.onload=async function(e){
     var b64=e.target.result.split(',')[1];
     await POST('/api/campaign-image',{imageBase64:b64});
-    DATA.hasCampaignImage=true;toast('Campaign image uploaded!');render();
+    DATA.hasCampaignImage=true;toast('Campaign image uploaded — QRs will be regenerated');render();
   };
   reader.readAsDataURL(inp.files[0]);
 }
@@ -694,50 +706,41 @@ async function doRemoveCampaignImage(){
 
 function renderSettings(){
   var h='<div class="card"><div class="card-hd">Event settings</div>';
-  h+='<div class="row"><div style="flex:1"><div class="lbl">Event name</div><input class="inp" id="s-ev" value="'+DATA.settings.eventName+'"></div>';
-  h+='<div style="flex:2"><div class="lbl">Check-in base URL</div><input class="inp" id="s-url" value="'+DATA.settings.checkinUrl+'"></div></div></div>';
+  h+='<div class="row" style="margin-bottom:10px"><div style="flex:1"><div class="lbl">Event name</div><input class="inp" id="s-ev" value="'+DATA.settings.eventName+'"></div>';
+  h+='<div style="flex:2"><div class="lbl">Check-in base URL (your Railway URL)</div><input class="inp" id="s-url" value="'+DATA.settings.checkinUrl+'"></div></div>';
+  h+='<div style="margin-bottom:10px"><div class="lbl">EZTexting username / email</div><input class="inp" id="s-eu" value="'+DATA.settings.ezUser+'" placeholder="your@email.com"></div>';
+  h+='<button class="btn btn-blue" onclick="doSaveSettings()">Save settings</button></div>';
+
   h+='<div class="card"><div class="card-hd">Campaign image for QR texts</div>';
-  h+='<div style="font-size:12px;color:var(--t2);margin-bottom:10px">Upload your event flyer. Each voter\'s QR code will be embedded in the bottom-right corner when sending MMS.</div>';
+  h+='<div style="font-size:12px;color:var(--t2);margin-bottom:10px">Upload your event flyer. Each voter\'s QR code will be placed side-by-side with the image (nothing gets covered).</div>';
   if(DATA.hasCampaignImage){
-    h+='<div class="row" style="align-items:center"><span class="tag tag-green">Image uploaded ✓</span><button class="btn btn-red" onclick="doRemoveCampaignImage()">Remove</button></div>';
+    h+='<div class="row" style="align-items:center"><span class="tag tag-green">✓ Image uploaded</span><button class="btn btn-red" style="margin-left:8px" onclick="doRemoveCampaignImage()">Remove</button></div>';
+    h+='<div style="font-size:12px;color:var(--t2);margin-top:6px">QR codes will be placed side-by-side with your image when sending MMS.</div>';
   }else{
     h+='<div class="row"><input type="file" id="ci-file" accept="image/*" class="inp" style="flex:1">';
-    h+='<button class="btn btn-blue" onclick="doUploadCampaignImage()">Upload image</button></div>';
-    h+='<div style="font-size:12px;color:var(--t3);margin-top:6px">No image — QR will be plain card with voter number.</div>';
+    h+='<button class="btn btn-blue" onclick="doUploadCampaignImage()">Upload</button></div>';
+    h+='<div style="font-size:12px;color:var(--t3);margin-top:6px">No image — QR codes sent as plain card with voter number.</div>';
   }
   h+='</div>';
-  h+='<div class="card"><div class="card-hd">EZTexting credentials</div>';
-  h+='<div class="lbl">Username / email</div><input class="inp" id="s-eu" value="'+DATA.settings.ezUser+'" placeholder="your@email.com" style="margin-bottom:10px">';
-  h+='<div class="help"><b style="font-weight:600">Password</b> is entered when creating or starting each campaign — not stored permanently for security.</div>';
-  h+='</div>';
-  h+='<button class="btn btn-blue" style="padding:10px 20px" onclick="doSaveSettings()">Save settings</button>';
-  h+='<div class="card" style="margin-top:12px"><div class="card-hd">Change login credentials</div>';
-  h+='<div class="row"><div style="flex:1"><div class="lbl">Username</div><input class="inp" id="s-auser" placeholder="New username"></div>';
-  h+='<div style="flex:1"><div class="lbl">New password</div><input type="password" class="inp" id="s-apass" placeholder="New password"></div></div>';
-  h+='<button class="btn btn-blue" style="margin-top:10px" onclick="doChangeCredentials()">Update credentials</button>';
-  h+='<div class="help" style="margin-top:8px">Default login: <code>admin</code> / <code>voterqr2026</code> — change this now!</div>';
-  h+='</div>';
+
+  h+='<div class="card"><div class="card-hd">Change login credentials</div>';
+  h+='<div class="help" style="margin-bottom:12px">Default login is <code>admin</code> / <code>voterqr2026</code> — change this now to secure your platform.</div>';
+  h+='<div class="row"><div style="flex:1"><div class="lbl">New username</div><input class="inp" id="s-auser" placeholder="New username" autocomplete="off"></div>';
+  h+='<div style="flex:1"><div class="lbl">New password</div><input type="password" class="inp" id="s-apass" placeholder="New password" autocomplete="new-password"></div></div>';
+  h+='<button class="btn btn-blue" style="margin-top:10px" onclick="doChangeCredentials()">Update credentials</button></div>';
   return h;
 }
 
-async function doChangeCredentials(){
-  var user=document.getElementById('s-auser').value.trim();
-  var pass=document.getElementById('s-apass').value.trim();
-  if(!user||!pass){toast('Enter both username and new password');return;}
-  await PUT('/api/settings',{adminUser:user,adminPass:pass});
-  toast('Credentials updated — you will need to log in again');
-  document.getElementById('s-auser').value='';
-  document.getElementById('s-apass').value='';
-  setTimeout(function(){logout();},1500);
-}
-
 // ── RENDER ────────────────────────────────────────────────────────────────────
-var TITLES={voters:{t:'Voters',s:'Manage your voter list'},segments:{t:'Segments',s:'Organize voters into groups'},
-  campaigns:{t:'Campaigns',s:'Create and send text campaigns — runs on server, safe to close browser'},
-  checkin:{t:'Event Check-In',s:'Scan QR or enter #number'},
+var TITLES={
+  voters:{t:'Voters',s:'Manage your voter list'},
+  segments:{t:'Segments',s:'Organize voters into groups'},
+  campaigns:{t:'Campaigns',s:'Send text campaigns — runs on server, safe to close browser'},
+  checkin:{t:'Event Check-In',s:'Staff only — scan or type voter #number'},
   followup:{t:'Early Vote Follow-Up',s:'Track who has voted'},
   dashboard:{t:'Dashboard',s:'Campaign overview'},
-  settings:{t:'Settings',s:'Configure credentials and event'}};
+  settings:{t:'Settings',s:'Credentials, event config, campaign image'}
+};
 
 function render(){
   var info=TITLES[CUR]||{t:CUR,s:''};
@@ -754,12 +757,11 @@ function render(){
   else if(CUR==='settings')pg.innerHTML=renderSettings();
 }
 
-// Check if already logged in
-if(AUTH_TOKEN){
-  document.getElementById('app').style.display='flex';
-  loadAll();
-} else {
-  document.getElementById('login-wrap').style.display='flex';
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+if(TOKEN){
+  showApp();
+}else{
+  document.getElementById('login-screen').style.display='flex';
 }
 </script>
 </body>

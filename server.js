@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const QRCode = require('qrcode');
@@ -32,6 +33,38 @@ function nextNum() { return DB.voters.length ? Math.max(...DB.voters.map(v => v.
 loadDB();
 
 const JOBS = {};
+
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+// Default credentials — change via Settings in the app
+const TOKENS = new Set(); // active session tokens
+
+function requireAuth(req, res, next) {
+  const token = req.headers['x-auth-token'] || req.query.token;
+  if (!token || !TOKENS.has(token)) return res.status(401).json({ error: 'Unauthorized' });
+  next();
+}
+
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  const storedUser = DB.settings.adminUser || 'admin';
+  const storedPass = DB.settings.adminPass || 'voterqr2026';
+  if (username === storedUser && password === storedPass) {
+    const token = crypto.randomBytes(32).toString('hex');
+    TOKENS.add(token);
+    // Expire token after 12 hours
+    setTimeout(() => TOKENS.delete(token), 12 * 60 * 60 * 1000);
+    res.json({ token, eventName: DB.settings.eventName });
+  } else {
+    res.status(401).json({ error: 'Invalid username or password' });
+  }
+});
+
+app.post('/api/logout', (req, res) => {
+  const token = req.headers['x-auth-token'];
+  if (token) TOKENS.delete(token);
+  res.json({ ok: true });
+});
 
 // ── Health ────────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'VoterQR running', voters: DB.voters.length }));
@@ -235,9 +268,9 @@ async function runCampaign(campaignId, host) {
 }
 
 // ── Campaign API ──────────────────────────────────────────────────────────────
-app.get('/api/campaigns', (req, res) => res.json((DB.campaigns||[]).map(c => ({ ...c, ezPass: undefined }))));
+app.get('/api/campaigns', requireAuth, (req, res) => res.json((DB.campaigns||[]).map(c => ({ ...c, ezPass: undefined }))));
 
-app.post('/api/campaigns', (req, res) => {
+app.post('/api/campaigns', requireAuth, (req, res) => {
   const { name, segmentId, message, mode, ezUser, ezPass } = req.body;
   if (!name || !message || !ezUser || !ezPass) return res.status(400).json({ error: 'Missing required fields' });
   const camp = {
@@ -251,12 +284,12 @@ app.post('/api/campaigns', (req, res) => {
   res.json({ ...camp, ezPass: undefined });
 });
 
-app.delete('/api/campaigns/:id', (req, res) => {
+app.delete('/api/campaigns/:id', requireAuth, (req, res) => {
   DB.campaigns = (DB.campaigns||[]).filter(c => c.id !== req.params.id);
   delete JOBS[req.params.id]; saveDB(); res.json({ ok: true });
 });
 
-app.post('/api/campaigns/:id/start', (req, res) => {
+app.post('/api/campaigns/:id/start', requireAuth, (req, res) => {
   const camp = DB.campaigns.find(c => c.id === req.params.id);
   if (!camp) return res.status(404).json({ error: 'Not found' });
   if (JOBS[camp.id]?.running) return res.json({ ok: true, message: 'Already running' });
@@ -267,20 +300,20 @@ app.post('/api/campaigns/:id/start', (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/campaigns/:id/pause', (req, res) => {
+app.post('/api/campaigns/:id/pause', requireAuth, (req, res) => {
   if (JOBS[req.params.id]) JOBS[req.params.id].running = false;
   const camp = DB.campaigns.find(c => c.id === req.params.id);
   if (camp) { camp.status = 'paused'; saveDB(); }
   res.json({ ok: true });
 });
 
-app.get('/api/campaigns/:id/status', (req, res) => {
+app.get('/api/campaigns/:id/status', requireAuth, (req, res) => {
   const camp = DB.campaigns.find(c => c.id === req.params.id);
   if (!camp) return res.status(404).json({ error: 'Not found' });
   res.json({ id: camp.id, name: camp.name, status: camp.status, statusMessage: camp.statusMessage||'', sentCount: camp.sentCount||0, total: camp.total||0, results: (camp.results||[]).slice(-20), createdAt: camp.createdAt, startedAt: camp.startedAt, completedAt: camp.completedAt });
 });
 
-app.post('/api/campaigns/:id/retry-failed', (req, res) => {
+app.post('/api/campaigns/:id/retry-failed', requireAuth, (req, res) => {
   const camp = DB.campaigns.find(c => c.id === req.params.id);
   if (!camp) return res.status(404).json({ error: 'Not found' });
   if (req.body.ezPass) camp.ezPass = req.body.ezPass;
@@ -291,14 +324,14 @@ app.post('/api/campaigns/:id/retry-failed', (req, res) => {
 });
 
 // ── Voters ────────────────────────────────────────────────────────────────────
-app.get('/api/voters', (req, res) => res.json(DB.voters));
+app.get('/api/voters', requireAuth, (req, res) => res.json(DB.voters));
 
-app.post('/api/voters', (req, res) => {
+app.post('/api/voters', requireAuth, (req, res) => {
   const v = { id: uid(), number: nextNum(), firstName: '', lastName: '', phone: '', address: '', segments: [], checkedIn: false, checkInTime: null, sentCampaigns: [], followUp: { status: 'pending', notes: '', lastContactDate: null }, ...req.body };
   DB.voters.push(v); saveDB(); res.json(v);
 });
 
-app.post('/api/voters/import', (req, res) => {
+app.post('/api/voters/import', requireAuth, (req, res) => {
   const list = req.body.voters || [], segId = req.body.segmentId || null;
   let num = nextNum(), added = 0, skipped = 0;
   list.forEach(v => {
@@ -312,16 +345,16 @@ app.post('/api/voters/import', (req, res) => {
   saveDB(); res.json({ added, skipped, total: DB.voters.length });
 });
 
-app.delete('/api/voters/all', (req, res) => { DB.voters = []; clearQRCache(); saveDB(); res.json({ ok: true }); });
-app.delete('/api/voters/:id', (req, res) => { DB.voters = DB.voters.filter(v => v.id !== req.params.id); saveDB(); res.json({ ok: true }); });
+app.delete('/api/voters/all', requireAuth, (req, res) => { DB.voters = []; clearQRCache(); saveDB(); res.json({ ok: true }); });
+app.delete('/api/voters/:id', requireAuth, (req, res) => { DB.voters = DB.voters.filter(v => v.id !== req.params.id); saveDB(); res.json({ ok: true }); });
 
-app.put('/api/voters/:id', (req, res) => {
+app.put('/api/voters/:id', requireAuth, (req, res) => {
   const v = DB.voters.find(v => v.id === req.params.id);
   if (!v) return res.status(404).json({ error: 'Not found' });
   Object.assign(v, req.body); saveDB(); res.json(v);
 });
 
-app.post('/api/voters/:id/checkin', (req, res) => {
+app.post('/api/voters/:id/checkin', requireAuth, (req, res) => {
   let v = DB.voters.find(v => v.id === req.params.id);
   if (!v) { const n = parseInt(req.params.id); if (!isNaN(n)) v = DB.voters.find(v => v.number === n); }
   if (!v) return res.status(404).json({ error: 'Voter not found' });
@@ -330,7 +363,7 @@ app.post('/api/voters/:id/checkin', (req, res) => {
   res.json({ voter: v, alreadyCheckedIn: already });
 });
 
-app.put('/api/voters/:id/followup', (req, res) => {
+app.put('/api/voters/:id/followup', requireAuth, (req, res) => {
   const v = DB.voters.find(v => v.id === req.params.id);
   if (!v) return res.status(404).json({ error: 'Not found' });
   v.followUp = { ...v.followUp, ...req.body, lastContactDate: new Date().toISOString() };
@@ -338,14 +371,14 @@ app.put('/api/voters/:id/followup', (req, res) => {
 });
 
 // ── Segments ──────────────────────────────────────────────────────────────────
-app.get('/api/segments', (req, res) => res.json(DB.segments));
-app.post('/api/segments', (req, res) => { const s = { id: uid(), name: '', color: '#2563eb', ...req.body }; DB.segments.push(s); saveDB(); res.json(s); });
-app.delete('/api/segments/:id', (req, res) => {
+app.get('/api/segments', requireAuth, (req, res) => res.json(DB.segments));
+app.post('/api/segments', requireAuth, (req, res) => { const s = { id: uid(), name: '', color: '#2563eb', ...req.body }; DB.segments.push(s); saveDB(); res.json(s); });
+app.delete('/api/segments/:id', requireAuth, (req, res) => {
   DB.segments = DB.segments.filter(s => s.id !== req.params.id);
   DB.voters.forEach(v => { v.segments = (v.segments||[]).filter(s => s !== req.params.id); });
   saveDB(); res.json({ ok: true });
 });
-app.post('/api/segments/noshows', (req, res) => {
+app.post('/api/segments/noshows', requireAuth, (req, res) => {
   const name = req.body.name || 'No Shows ' + new Date().toLocaleDateString();
   const seg = { id: uid(), name, color: '#dc2626' };
   DB.segments.push(seg);
@@ -356,23 +389,44 @@ app.post('/api/segments/noshows', (req, res) => {
 
 // ── Settings & Campaign Image ─────────────────────────────────────────────────
 app.get('/api/settings', (req, res) => res.json(DB.settings));
-app.put('/api/settings', (req, res) => { DB.settings = { ...DB.settings, ...req.body }; saveDB(); res.json(DB.settings); });
+app.put('/api/settings', requireAuth, (req, res) => { DB.settings = { ...DB.settings, ...req.body }; saveDB(); res.json(DB.settings); });
 
-app.post('/api/campaign-image', (req, res) => {
+app.post('/api/campaign-image', requireAuth, (req, res) => {
   if (!req.body.imageBase64) return res.status(400).json({ error: 'No image' });
   DB.campaignImage = req.body.imageBase64;
   clearQRCache(); // Force QR regeneration with new image
   saveDB(); res.json({ ok: true });
 });
-app.delete('/api/campaign-image', (req, res) => { DB.campaignImage = null; clearQRCache(); saveDB(); res.json({ ok: true }); });
+app.delete('/api/campaign-image', requireAuth, (req, res) => { DB.campaignImage = null; clearQRCache(); saveDB(); res.json({ ok: true }); });
 app.get('/api/campaign-image', (req, res) => res.json({ hasImage: !!DB.campaignImage }));
 
 // Pre-generate QRs endpoint (call before sending to warm up cache)
-app.post('/api/pregenerate-qr', async (req, res) => {
+app.post('/api/pregenerate-qr', requireAuth, async (req, res) => {
   const { segmentId } = req.body;
   const host = req.headers.host;
   res.json({ ok: true, message: 'Pre-generating QR codes in background...' });
   pregenerateQRs(segmentId, host).catch(e => console.error('Pregen error:', e));
+});
+
+
+// Public voter info endpoint — used by QR scan page (no auth, read-only, no check-in)
+app.get('/api/voter-info/:id', (req, res) => {
+  let v = DB.voters.find(v => v.id === req.params.id.toUpperCase());
+  if (!v) {
+    const n = parseInt(req.params.id);
+    if (!isNaN(n)) v = DB.voters.find(v => v.number === n);
+  }
+  if (!v) return res.status(404).json({ error: 'Voter not found' });
+  // Return only safe fields — no campaign data, no other voters
+  res.json({
+    voter: {
+      id: v.id, number: v.number,
+      firstName: v.firstName, lastName: v.lastName,
+      phone: v.phone, segments: v.segments||[],
+      checkedIn: v.checkedIn, checkInTime: v.checkInTime
+    },
+    segments: DB.segments.map(s => ({ id: s.id, name: s.name, color: s.color }))
+  });
 });
 
 // ── SPA ───────────────────────────────────────────────────────────────────────

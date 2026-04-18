@@ -88,6 +88,13 @@ code{font-family:'DM Mono',monospace;font-size:11px;background:var(--s2);padding
 .slog{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;border-radius:var(--rs);margin-bottom:2px;font-size:12px}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+.login-wrap{position:fixed;inset:0;background:#f2f1ec;display:flex;align-items:center;justify-content:center;z-index:1000}
+.login-box{background:#fff;border:1px solid #e4e2d9;border-radius:16px;padding:36px 32px;width:100%;max-width:380px;text-align:center}
+.login-logo{width:48px;height:48px;background:#2563eb;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 20px}
+.login-title{font-size:20px;font-weight:600;margin-bottom:4px}
+.login-sub{font-size:13px;color:#6b6860;margin-bottom:24px}
+.login-err{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:8px;padding:10px;font-size:13px;margin-bottom:14px;display:none}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:#fff;padding:10px 18px;border-radius:var(--rs);font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
 .camp-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px}
@@ -100,7 +107,7 @@ code{font-family:'DM Mono',monospace;font-size:11px;background:var(--s2);padding
 </style>
 </head>
 <body>
-<div class="shell" id="app">
+<div class="shell" id="app" style="display:none">
   <div class="sb">
     <div class="sb-logo">🗳</div>
     <div class="nb on" id="nb-voters" onclick="go('voters')"><span>👥</span><span class="tip">Voters</span></div>
@@ -116,14 +123,32 @@ code{font-family:'DM Mono',monospace;font-size:11px;background:var(--s2);padding
   <div class="main">
     <div class="topbar">
       <div><div class="pg-t" id="pg-t">Voters</div><div style="font-size:11px;color:var(--t2)" id="pg-s"></div></div>
-      <div class="top-stats" id="top-stats"></div>
+      <div style="display:flex;align-items:center;gap:12px"><div class="top-stats" id="top-stats"></div><button class="btn btn-red" style="font-size:11px;padding:4px 10px" onclick="if(confirm('Log out?'))logout()">Log out</button></div>
     </div>
     <div class="page" id="page"><div class="empty"><div class="spin"></div></div></div>
   </div>
 </div>
+
+<div class="login-wrap" id="login-wrap" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">🗳</div>
+    <div class="login-title">VoterQR</div>
+    <div class="login-sub">Sign in to access the campaign platform</div>
+    <div class="login-err" id="l-err"></div>
+    <div style="margin-bottom:10px;text-align:left">
+      <div class="lbl">Username</div>
+      <input class="inp" id="l-user" placeholder="admin" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()">
+    </div>
+    <div style="margin-bottom:18px;text-align:left">
+      <div class="lbl">Password</div>
+      <input type="password" class="inp" id="l-pass" placeholder="••••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-blue" style="width:100%;padding:10px;font-size:14px" onclick="doLogin()">Sign in</button>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 <script>
-var CUR='voters';
+var CUR='voters'; var AUTH_TOKEN=localStorage.getItem('vqr_token')||'';
 var DATA={voters:[],segments:[],campaigns:[],settings:{eventName:'Campaign Event 2026',checkinUrl:window.location.origin,ezUser:''},hasCampaignImage:false};
 var CI_RESULT=null, EZ_PASS='';
 var PANELS={importOpen:false,addVoter:false,addSeg:false,addCamp:false};
@@ -137,9 +162,31 @@ function segById(id){return DATA.segments.find(function(s){return s.id===id})}
 function numStr(n){return n<10?'00'+n:n<100?'0'+n:''+n}
 
 async function api(method,path,body){
-  var opts={method:method,headers:{'Content-Type':'application/json'}};
+  var opts={method:method,headers:{'Content-Type':'application/json','x-auth-token':AUTH_TOKEN}};
   if(body)opts.body=JSON.stringify(body);
-  var r=await fetch(path,opts);return r.json();
+  var r=await fetch(path,opts);
+  if(r.status===401){logout();return{error:'Unauthorized'};}
+  return r.json();
+}
+function logout(){
+  AUTH_TOKEN='';localStorage.removeItem('vqr_token');
+  document.getElementById('login-wrap').style.display='flex';
+  document.getElementById('app').style.display='none';
+}
+async function doLogin(){
+  var user=document.getElementById('l-user').value.trim();
+  var pass=document.getElementById('l-pass').value.trim();
+  var err=document.getElementById('l-err');
+  err.style.display='none';
+  if(!user||!pass){err.textContent='Enter username and password';err.style.display='block';return;}
+  var r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
+  var data=await r.json();
+  if(!r.ok){err.textContent=data.error||'Login failed';err.style.display='block';return;}
+  AUTH_TOKEN=data.token;
+  localStorage.setItem('vqr_token',AUTH_TOKEN);
+  document.getElementById('login-wrap').style.display='none';
+  document.getElementById('app').style.display='flex';
+  loadAll();
 }
 async function GET(p){return api('GET',p)}
 async function POST(p,b){return api('POST',p,b)}
@@ -147,6 +194,11 @@ async function PUT(p,b){return api('PUT',p,b)}
 async function DEL(p){return api('DELETE',p)}
 
 async function loadAll(){
+  if(!AUTH_TOKEN){
+    document.getElementById('login-wrap').style.display='flex';
+    document.getElementById('app').style.display='none';
+    return;
+  }
   var [v,s,c,st,ci]=await Promise.all([
     GET('/api/voters'),GET('/api/segments'),GET('/api/campaigns'),
     GET('/api/settings'),GET('/api/campaign-image')
@@ -372,7 +424,7 @@ function startPoll(id){
     var status=await GET('/api/campaigns/'+id+'/status').catch(function(){return null;});
     if(!status)return;
     var camp=DATA.campaigns.find(function(c){return c.id===id});
-    if(camp){Object.assign(camp,status);}
+    if(camp){Object.assign(camp,status);}else{DATA.campaigns.push(status);}
     else{DATA.campaigns.push(status);}
     if(status.status!=='running'){clearInterval(POLL_TIMERS[id]);delete POLL_TIMERS[id];}
     render();
@@ -475,7 +527,7 @@ function renderCampaigns(){
     h+='</div></div>';
     // Progress bar
     h+='<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">';
-    h+='<span style="color:var(--t2)">'+(isRunning?'<span class="spin"></span>':'')+''+sent+' sent of '+total+'</span>';
+    var smsg=camp.statusMessage||'';h+='<span style="color:var(--t2)">'+(isRunning?'<span class="spin"></span>':'')+sent+' sent of '+total+(smsg?' · '+smsg:'')+'</span>';
     h+='<span style="font-weight:600;color:var(--green)">'+pct+'%</span></div>';
     h+='<div class="prog"><div class="pf" style="width:'+pct+'%;background:var(--green)"></div></div>';
     if(failed)h+='<div style="font-size:11px;color:var(--red);margin-top:4px">'+failed+' failed</div>';
@@ -659,7 +711,24 @@ function renderSettings(){
   h+='<div class="help"><b style="font-weight:600">Password</b> is entered when creating or starting each campaign — not stored permanently for security.</div>';
   h+='</div>';
   h+='<button class="btn btn-blue" style="padding:10px 20px" onclick="doSaveSettings()">Save settings</button>';
+  h+='<div class="card" style="margin-top:12px"><div class="card-hd">Change login credentials</div>';
+  h+='<div class="row"><div style="flex:1"><div class="lbl">Username</div><input class="inp" id="s-auser" placeholder="New username"></div>';
+  h+='<div style="flex:1"><div class="lbl">New password</div><input type="password" class="inp" id="s-apass" placeholder="New password"></div></div>';
+  h+='<button class="btn btn-blue" style="margin-top:10px" onclick="doChangeCredentials()">Update credentials</button>';
+  h+='<div class="help" style="margin-top:8px">Default login: <code>admin</code> / <code>voterqr2026</code> — change this now!</div>';
+  h+='</div>';
   return h;
+}
+
+async function doChangeCredentials(){
+  var user=document.getElementById('s-auser').value.trim();
+  var pass=document.getElementById('s-apass').value.trim();
+  if(!user||!pass){toast('Enter both username and new password');return;}
+  await PUT('/api/settings',{adminUser:user,adminPass:pass});
+  toast('Credentials updated — you will need to log in again');
+  document.getElementById('s-auser').value='';
+  document.getElementById('s-apass').value='';
+  setTimeout(function(){logout();},1500);
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
@@ -685,7 +754,13 @@ function render(){
   else if(CUR==='settings')pg.innerHTML=renderSettings();
 }
 
-loadAll();
+// Check if already logged in
+if(AUTH_TOKEN){
+  document.getElementById('app').style.display='flex';
+  loadAll();
+} else {
+  document.getElementById('login-wrap').style.display='flex';
+}
 </script>
 </body>
 </html>

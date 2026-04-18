@@ -8,62 +8,68 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'DM Sans',sans-serif;background:#f2f1ec;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.box{background:#fff;border-radius:16px;padding:32px;max-width:420px;width:100%;text-align:center;border:1px solid #e4e2d9}
-.icon{font-size:48px;margin-bottom:16px}
-.name{font-size:26px;font-weight:600;margin-bottom:6px}
-.phone{font-size:15px;color:#6b6860;margin-bottom:16px;font-family:monospace}
-.status{padding:10px 20px;border-radius:30px;font-size:14px;font-weight:500;display:inline-block;margin-bottom:20px}
+.box{background:#fff;border-radius:16px;padding:32px 28px;max-width:400px;width:100%;text-align:center;border:1px solid #e4e2d9;box-shadow:0 4px 24px rgba(0,0,0,0.06)}
+.icon{font-size:52px;margin-bottom:16px}
+.num{font-size:13px;font-weight:600;color:#2563eb;font-family:monospace;background:#eff4ff;padding:4px 12px;border-radius:20px;display:inline-block;margin-bottom:12px}
+.name{font-size:24px;font-weight:600;margin-bottom:6px;color:#1a1916}
+.phone{font-size:14px;color:#6b6860;margin-bottom:20px;font-family:monospace}
+.status{padding:12px 20px;border-radius:10px;font-size:14px;font-weight:500;margin-bottom:20px}
 .ok{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0}
-.already{background:#fffbeb;color:#d97706;border:1px solid #fde68a}
-.err{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
-.seg{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;margin:3px}
-.sub{font-size:13px;color:#aaa89f;margin-top:16px}
+.info{background:#eff4ff;color:#2563eb;border:1px solid #bfcffc}
+.sub{font-size:13px;color:#aaa89f;line-height:1.6}
+.seg{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;margin:3px;font-weight:500}
+.instruction{background:#f8f7f3;border-radius:10px;padding:14px;margin-top:16px;font-size:13px;color:#6b6860;line-height:1.6;border:1px solid #e4e2d9}
 </style>
 </head>
 <body>
 <div class="box" id="box">
   <div class="icon">⏳</div>
-  <div class="name">Checking in...</div>
+  <div class="name" style="color:#aaa89f">Loading...</div>
 </div>
 <script>
-var params=new URLSearchParams(window.location.search);
-var voterId=(params.get('voter')||'').toUpperCase();
-async function run(){
-  var box=document.getElementById('box');
-  if(!voterId){
-    box.innerHTML='<div class="icon">❌</div><div class="name">Invalid QR code</div><div class="sub">No voter ID found.</div>';
+var params = new URLSearchParams(window.location.search);
+var voterId = (params.get('voter') || '').toUpperCase();
+
+async function run() {
+  var box = document.getElementById('box');
+  if (!voterId) {
+    box.innerHTML = '<div class="icon">❌</div><div class="name">Invalid QR code</div><div class="sub">Please ask a staff member for assistance.</div>';
     return;
   }
-  try{
-    var res=await fetch('/api/voters/'+voterId+'/checkin',{method:'POST',headers:{'Content-Type':'application/json'}});
-    var data=await res.json();
-    if(data.error){
-      box.innerHTML='<div class="icon">❌</div><div class="name">Voter not found</div><div class="sub">ID: '+voterId+'<br>Please see the registration desk.</div>';
+  try {
+    // Fetch voter info only — does NOT check them in
+    // Check-in is done by authenticated staff via the app
+    var res = await fetch('/api/voter-info/' + voterId);
+    var data = await res.json();
+    if (!res.ok || data.error) {
+      box.innerHTML = '<div class="icon">❓</div><div class="name">Voter not found</div><div class="sub">Please show this to a staff member at the registration desk.<br><br><code style="font-size:11px;background:#f2f1ec;padding:2px 6px;border-radius:4px">' + voterId + '</code></div>';
       return;
     }
-    var v=data.voter;
-    var already=data.alreadyCheckedIn;
-    var segsHtml='';
-    if(v.segments&&v.segments.length){
-      // Fetch segments for names
-      try{
-        var sr=await fetch('/api/segments');
-        var segs=await sr.json();
-        v.segments.forEach(function(sid){
-          var s=segs.find(function(x){return x.id===sid});
-          if(s)segsHtml+='<span class="seg" style="background:'+s.color+'22;color:'+s.color+';border:1px solid '+s.color+'44">'+s.name+'</span>';
-        });
-      }catch(e){}
+    var v = data.voter;
+    var segsHtml = '';
+    if (v.segments && v.segments.length && data.segments) {
+      v.segments.forEach(function(sid) {
+        var s = data.segments.find(function(x) { return x.id === sid; });
+        if (s) segsHtml += '<span class="seg" style="background:' + s.color + '22;color:' + s.color + ';border:1px solid ' + s.color + '44">' + s.name + '</span>';
+      });
     }
-    var time=already?new Date(v.checkInTime).toLocaleTimeString():'just now';
-    box.innerHTML='<div class="icon">'+(already?'⚠️':'✅')+'</div>'+
-      '<div class="name">'+v.firstName+' '+v.lastName+'</div>'+
-      '<div class="phone">'+v.phone+'</div>'+
-      '<div class="status '+(already?'already':'ok')+'">'+(already?'Already checked in at '+time:'Welcome! You\'re checked in.')+'</div>'+
-      (segsHtml?'<div>'+segsHtml+'</div>':'')+
-      '<div class="sub">'+( already?'You were checked in earlier today.':'Your attendance has been recorded. Enjoy the event!')+'</div>';
-  }catch(e){
-    box.innerHTML='<div class="icon">❌</div><div class="name">Connection error</div><div class="sub">'+e.message+'</div>';
+    box.innerHTML =
+      '<div class="icon">🗳</div>' +
+      '<div class="num">#' + (v.number ? String(v.number).padStart(3,'0') : '???') + '</div>' +
+      '<div class="name">' + v.firstName + ' ' + v.lastName + '</div>' +
+      '<div class="phone">' + v.phone + '</div>' +
+      (segsHtml ? '<div style="margin-bottom:14px">' + segsHtml + '</div>' : '') +
+      '<div class="status ' + (v.checkedIn ? 'ok' : 'info') + '">' +
+        (v.checkedIn
+          ? '✓ Already checked in at ' + new Date(v.checkInTime).toLocaleTimeString()
+          : '📋 Please check in with a staff member') +
+      '</div>' +
+      '<div class="instruction">' +
+        '<strong>Show this screen to a staff member</strong><br>' +
+        'They will confirm your attendance using our check-in system.' +
+      '</div>';
+  } catch(e) {
+    box.innerHTML = '<div class="icon">⚠️</div><div class="name">Connection error</div><div class="sub">Please show this QR code to a staff member.<br><br>Error: ' + e.message + '</div>';
   }
 }
 run();

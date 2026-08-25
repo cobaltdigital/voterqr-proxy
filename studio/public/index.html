@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cobalt Studio</title>
+<style>
+  :root{
+    --bg:#0b0f16; --panel:#121826; --panel2:#1a2233; --line:#243049;
+    --ink:#e8edf7; --muted:#8b9ab5; --accent:#3b82f6; --accent2:#22d3ee;
+    --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+    --tech:#2563eb; --marketing:#0d9488; --entrepreneur:#7c3aed;
+    --nostalgia:#db2777; --dads:#ea580c; --pro:#1e40af;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  a{color:var(--accent2)}
+  header{position:sticky;top:0;z-index:50;background:rgba(11,15,22,.92);
+    backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:14px;padding:12px 18px;max-width:1200px;margin:0 auto}
+  .logo{font-weight:700;letter-spacing:-.3px;font-size:17px;white-space:nowrap}
+  .logo span{color:var(--accent2)}
+  nav{display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none}
+  nav::-webkit-scrollbar{display:none}
+  nav button{background:none;border:0;color:var(--muted);padding:8px 13px;border-radius:8px;
+    cursor:pointer;font-size:14px;font-weight:500;white-space:nowrap}
+  nav button:hover{color:var(--ink);background:var(--panel2)}
+  nav button.on{background:var(--accent);color:#fff}
+  main{max-width:1200px;margin:0 auto;padding:22px 18px 90px}
+  h2{margin:0 0 4px;font-size:22px;letter-spacing:-.4px}
+  .sub{color:var(--muted);margin:0 0 20px;font-size:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+  .grid{display:grid;gap:14px}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .stat b{display:block;font-size:30px;line-height:1.1;letter-spacing:-1px}
+  .stat small{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px}
+  button.btn{background:var(--accent);color:#fff;border:0;padding:10px 16px;border-radius:9px;
+    font-weight:600;cursor:pointer;font-size:14px}
+  button.btn:hover{filter:brightness(1.12)}
+  button.btn:disabled{opacity:.45;cursor:not-allowed}
+  button.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  button.sm{padding:6px 11px;font-size:13px;border-radius:7px}
+  input,select,textarea{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    padding:9px 11px;border-radius:8px;font:inherit;width:100%}
+  textarea{min-height:90px;resize:vertical;line-height:1.55}
+  label{display:block;font-size:12px;color:var(--muted);margin:12px 0 5px;
+    text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.5px}
+  .chip{display:inline-block;padding:4px 10px;border-radius:7px;background:var(--panel2);
+    border:1px solid var(--line);font-size:12px;color:var(--muted)}
+  .script{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--panel);
+    margin-bottom:10px}
+  .script h4{margin:0 0 6px;font-size:16px}
+  .script .hook{color:var(--accent2);font-weight:600;margin:6px 0}
+  .script .body{white-space:pre-wrap;color:var(--muted);font-size:14px;display:none;margin-top:10px}
+  .script.open .body{display:block}
+  .muted{color:var(--muted)}
+  .tiny{font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+  .bad{color:var(--bad)} .ok{color:var(--ok)} .warn{color:var(--warn)}
+  .empty{text-align:center;padding:44px 20px;color:var(--muted)}
+  /* Teleprompter */
+  #prompter{position:fixed;inset:0;background:#000;z-index:200;display:none;flex-direction:column}
+  #prompter.on{display:flex}
+  #ptext{flex:1;overflow-y:auto;padding:45vh 6vw;font-size:var(--psize,42px);line-height:1.45;
+    font-weight:600;text-align:center;scroll-behavior:auto}
+  #ptext .phook{color:var(--accent2)}
+  #ptext .pcta{color:var(--warn);margin-top:1em}
+  #pbar{display:flex;gap:8px;align-items:center;padding:12px 14px;
+    padding-bottom:calc(12px + env(safe-area-inset-bottom));background:#0b0f16;border-top:1px solid var(--line)}
+  #pbar button{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    padding:9px 13px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px}
+  #pbar .play{background:var(--accent);border-color:var(--accent);color:#fff;min-width:74px}
+  .ptitle{position:fixed;top:0;left:0;right:0;padding:10px 14px;
+    padding-top:calc(10px + env(safe-area-inset-top));
+    background:linear-gradient(#000,transparent);color:var(--muted);font-size:13px;z-index:201}
+  /* Trimmer */
+  video{width:100%;border-radius:10px;background:#000;display:block}
+  .trim{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .mono{font-variant-numeric:tabular-nums;font-family:ui-monospace,Menlo,monospace}
+  .bar-prog{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden;margin-top:8px}
+  .bar-prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+  .cal-day{border:1px solid var(--line);border-radius:11px;padding:12px;background:var(--panel);margin-bottom:10px}
+  .cal-day h4{margin:0 0 8px;font-size:14px}
+  .slotline{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}
+  .slotline:first-of-type{border-top:0}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--panel2);
+    border:1px solid var(--line);padding:11px 20px;border-radius:10px;z-index:300;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);font-size:14px;max-width:90vw}
+  @media(max-width:640px){
+    .bar{padding:10px 12px;gap:10px} main{padding:16px 12px 80px}
+    .logo{font-size:15px} #ptext{font-size:var(--psize,32px);padding:40vh 5vw}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <div class="logo">Cobalt<span>Studio</span></div>
+    <nav id="nav"></nav>
+  </div>
+</header>
+
+<main id="app"><div class="empty">Loading…</div></main>
+
+<div id="prompter">
+  <div class="ptitle" id="ptitle"></div>
+  <div id="ptext"></div>
+  <div id="pbar">
+    <button class="play" id="pplay">Play</button>
+    <button id="pslower">Slower</button>
+    <button id="pfaster">Faster</button>
+    <button id="psmaller">A−</button>
+    <button id="pbigger">A+</button>
+    <button id="prestart">Restart</button>
+    <span class="mono muted tiny" id="pspeed" style="margin-left:auto"></span>
+    <button id="pnext">Next ▸</button>
+    <button id="pclose">Exit</button>
+  </div>
+</div>
+
+<script>
+const VIEWS = [
+  ['dash','Dashboard'], ['scripts','Scripts'], ['shoot','Shoot Day'],
+  ['clips','Clips'], ['calendar','Calendar'], ['queue','Publish Queue'], ['settings','Settings']
+];
+let S = null, META = null, view = 'dash';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtTime = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+
+function toast(msg, ms = 2600) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch('/api' + path, {
+    headers: { 'Content-Type': 'application/json' }, ...opts,
+  });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try { msg = (await res.json()).error || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+async function load() {
+  [S, META] = await Promise.all([api('/state'), api('/meta')]);
+  render();
+}
+
+function pillarPill(key) {
+  const p = META.pillars[key];
+  if (!p) return '';
+  return `<span class="pill" style="background:${p.color}22;color:${p.color}">${esc(p.name)}</span>`;
+}
+
+function nav() {
+  $('#nav').innerHTML = VIEWS.map(([k, label]) =>
+    `<button class="${view === k ? 'on' : ''}" data-v="${k}">${label}</button>`).join('');
+  $('#nav').onclick = e => {
+    const v = e.target.closest('[data-v]');
+    if (v) { view = v.dataset.v; render(); window.scrollTo(0, 0); }
+  };
+}
+
+function render() {
+  nav();
+  ({ dash, scripts: scriptsView, shoot, clips, calendar, queue, settings }[view] || dash)();
+}
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+function nextShootDate() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d = new Date(today);
+  d.setDate(d.getDate() + ((S.settings.shootDay - d.getDay() + 7) % 7));
+  return d;
+}
+
+function dash() {
+  const ready = S.scripts.filter(s => s.status === 'ready');
+  const rendered = S.clips.filter(c => c.status === 'rendered');
+  const upcoming = S.calendar.filter(e => e.status === 'scheduled').slice(0, 8);
+  const shoot = nextShootDate();
+  const isToday = shoot.toDateString() === new Date().toDateString();
+  const cap = S.capabilities;
+
+  $('#app').innerHTML = `
+    <h2>Dashboard</h2>
+    <p class="sub">${esc(S.settings.brand)}</p>
+
+    <div class="grid g3" style="margin-bottom:16px">
+      <div class="stat"><small>Scripts ready</small><b>${ready.length}</b></div>
+      <div class="stat"><small>Clips rendered</small><b>${rendered.length}</b></div>
+      <div class="stat"><small>Scheduled posts</small><b>${S.calendar.filter(e=>e.status==='scheduled').length}</b></div>
+      <div class="stat"><small>Posted</small><b>${S.calendar.filter(e=>e.status==='posted').length}</b></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 6px">Next shoot: ${isToday ? 'TODAY' : shoot.toDateString()}</h3>
+      <p class="muted tiny" style="margin:0 0 12px">
+        ${S.settings.shootTime} · ${S.settings.shootMinutes} minute block · target ${S.settings.clipsPerShoot} clips
+      </p>
+      <button class="btn" onclick="view='shoot';render()">Open shoot plan</button>
+    </div>
+
+    ${(!cap.ffmpeg || !cap.ai) ? `<div class="card" style="border-color:var(--warn)">
+      <h3 style="margin:0 0 8px" class="warn">Setup needed</h3>
+      <ul class="muted tiny" style="margin:0;padding-left:18px">
+        ${!cap.ffmpeg ? '<li><b>ffmpeg missing</b> — clip rendering is off. Run <span class="mono">npm install</span> in <span class="mono">studio/</span>.</li>' : ''}
+        ${!cap.ai ? '<li><b>No Anthropic key</b> — captions fall back to templates and script generation is off. Add one in Settings.</li>' : ''}
+      </ul>
+    </div>` : ''}
+
+    <div class="card">
+      <h3 style="margin:0 0 12px">Next up</h3>
+      ${upcoming.length ? `<table><tr><th>Date</th><th>Time</th><th>Platform</th><th>Post</th></tr>
+        ${upcoming.map(e => `<tr>
+          <td class="mono">${esc(e.date)}</td><td class="mono">${esc(e.time)}</td>
+          <td>${esc(META.platforms[e.platform] ? META.platforms[e.platform].name : e.platform)}</td>
+          <td>${esc(e.title)}</td></tr>`).join('')}
+      </table>` : '<p class="muted tiny" style="margin:0">Nothing scheduled. Render some clips, then generate the calendar.</p>'}
+    </div>`;
+}
+
+// ── Scripts ──────────────────────────────────────────────────────────────────
+let scriptFilter = 'all';
+
+function scriptsView() {
+  const list = scriptFilter === 'all' ? S.scripts : S.scripts.filter(s => s.pillar === scriptFilter);
+  $('#app').innerHTML = `
+    <h2>Script bank</h2>
+    <p class="sub">${S.scripts.length} scripts · ${S.ideas.length} ideas waiting. Tap a script to expand it.</p>
+
+    <div class="row" style="margin-bottom:14px">
+      <button class="btn sm ${scriptFilter==='all'?'':'ghost'}" onclick="scriptFilter='all';render()">All</button>
+      ${Object.values(META.pillars).map(p =>
+        `<button class="btn sm ${scriptFilter===p.key?'':'ghost'}" onclick="scriptFilter='${p.key}';render()">${esc(p.name)}</button>`).join('')}
+    </div>
+
+    <div id="scriptlist">
+      ${list.length ? list.map(s => `
+        <div class="script" data-id="${s.id}">
+          <div class="row" style="justify-content:space-between">
+            <h4 style="flex:1;cursor:pointer" onclick="this.closest('.script').classList.toggle('open')">
+              ${esc(s.title)}</h4>
+            ${pillarPill(s.pillar)}
+          </div>
+          <div class="hook">"${esc(s.hook)}"</div>
+          <div class="row tiny muted">
+            <span class="chip">${s.lengthSec || '?'}s</span>
+            <span class="chip">${esc(s.format || 'vertical')}</span>
+            <span class="chip">${esc(s.status)}</span>
+            ${s.shootDate ? `<span class="chip">shoot ${esc(s.shootDate)}</span>` : ''}
+          </div>
+          <div class="body">${esc(s.body)}
+
+<b>CTA:</b> ${esc(s.cta)}
+${s.onScreen && s.onScreen.length ? `\n<b>On screen:</b> ${s.onScreen.map(esc).join(' · ')}` : ''}
+${s.broll ? `\n<b>B-roll:</b> ${esc(s.broll)}` : ''}
+${s.audioNote ? `\n<b>Audio:</b> ${esc(s.audioNote)}` : ''}
+            <div class="row" style="margin-top:12px">
+              <button class="btn sm" onclick="openPrompter(['${s.id}'])">Teleprompter</button>
+              <button class="btn sm ghost" onclick="delScript('${s.id}')">Delete</button>
+            </div>
+          </div>
+        </div>`).join('') : '<div class="empty">No scripts in this pillar yet.</div>'}
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 4px">Idea bank</h3>
+      <p class="muted tiny" style="margin:0 0 12px">
+        ${S.capabilities.ai ? 'Turn any idea into a full script.' : 'Add an Anthropic key in Settings to expand these into full scripts.'}
+      </p>
+      ${S.ideas.map(i => `<div class="row" style="padding:7px 0;border-bottom:1px solid var(--line)">
+          <span style="flex:1">${esc(i.title)}</span>
+          ${pillarPill(i.pillar)}
+          <button class="btn sm ghost" ${S.capabilities.ai ? '' : 'disabled'}
+            onclick="expandIdea('${i.id}')">Write it</button>
+        </div>`).join('')}
+    </div>`;
+}
+
+async function expandIdea(id) {
+  const idea = S.ideas.find(i => i.id === id);
+  if (!idea) return;
+  toast('Writing script…');
+  try {
+    await api('/scripts/generate', {
+      method: 'POST',
+      body: JSON.stringify({ title: idea.title, pillar: idea.pillar, lengthSec: 40, ideaId: id }),
+    });
+    await load();
+    toast('Script added');
+  } catch (e) { toast('Failed: ' + e.message, 4200); }
+}
+
+async function delScript(id) {
+  if (!confirm('Delete this script?')) return;
+  await api('/scripts/' + id, { method: 'DELETE' });
+  await load();
+}
+
+// ── Shoot Day ────────────────────────────────────────────────────────────────
+let shootPlan = null;
+let selected = new Set();
+
+function shoot() {
+  const ready = S.scripts.filter(s => ['ready', 'shot'].includes(s.status));
+  if (selected.size === 0) ready.slice(0, S.settings.clipsPerShoot).forEach(s => selected.add(s.id));
+
+  const chosen = ready.filter(s => selected.has(s.id));
+  const totalSpoken = chosen.reduce((a, s) => a + (s.lengthSec || 40), 0);
+  const estMinutes = Math.ceil(chosen.reduce((a, s) => a + ((s.lengthSec || 40) * 3 + 60), 0) / 60);
+  const over = estMinutes > S.settings.shootMinutes;
+
+  $('#app').innerHTML = `
+    <h2>Shoot day</h2>
+    <p class="sub">Pick the batch, then run the teleprompter straight through. Order is set so you only move the camera once.</p>
+
+    <div class="grid g3" style="margin-bottom:16px">
+      <div class="stat"><small>Selected</small><b>${chosen.length}</b></div>
+      <div class="stat"><small>Spoken time</small><b>${fmtTime(totalSpoken)}</b></div>
+      <div class="stat"><small>Est. shoot time</small><b class="${over?'bad':'ok'}">${estMinutes}m</b></div>
+      <div class="stat"><small>Budget</small><b>${S.settings.shootMinutes}m</b></div>
+    </div>
+
+    ${over ? `<div class="card" style="border-color:var(--warn);padding:12px 16px">
+      <span class="warn tiny"><b>Over budget by ${estMinutes - S.settings.shootMinutes} minutes.</b>
+      Estimate assumes 3 takes per script plus reset. Drop ${Math.ceil((estMinutes-S.settings.shootMinutes)/3)} scripts or accept the overrun.</span>
+    </div>` : ''}
+
+    <div class="card">
+      <div class="row" style="margin-bottom:14px">
+        <button class="btn" onclick="openPrompter(${JSON.stringify([...selected]).replace(/"/g,'&quot;')})"
+          ${chosen.length ? '' : 'disabled'}>▶ Run teleprompter (${chosen.length})</button>
+        <button class="btn ghost sm" onclick="selected=new Set();render()">Clear all</button>
+        <button class="btn ghost sm" onclick="markShot()">Mark batch as shot</button>
+      </div>
+      ${ready.map((s, i) => `
+        <label class="row" style="padding:9px 0;border-top:1px solid var(--line);margin:0;
+          text-transform:none;letter-spacing:0;font-size:15px;color:var(--ink);cursor:pointer">
+          <input type="checkbox" style="width:18px;height:18px;flex:0 0 auto" ${selected.has(s.id)?'checked':''}
+            onchange="toggleSel('${s.id}')">
+          <span style="flex:1">${esc(s.title)}
+            <span class="tiny muted"> · ${s.lengthSec||40}s · ${esc(s.format||'vertical')}</span></span>
+          ${pillarPill(s.pillar)}
+        </label>`).join('')}
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 10px">Run of show</h3>
+      <p class="muted tiny" style="margin:0 0 12px">Shoot every vertical script first, then switch the camera for the square LinkedIn pieces.</p>
+      <table><tr><th>#</th><th>Script</th><th>Format</th><th>Est.</th></tr>
+        ${[...chosen].sort((a,b) => (a.format==='vertical'?-1:1) - (b.format==='vertical'?-1:1))
+          .map((s, i) => `<tr><td class="mono">${i+1}</td><td>${esc(s.title)}</td>
+            <td>${esc(s.format||'vertical')}</td>
+            <td class="mono">${Math.ceil(((s.lengthSec||40)*3+60)/60)}m</td></tr>`).join('')}
+      </table>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 10px">Before you hit record</h3>
+      <ul class="muted tiny" style="margin:0;padding-left:18px;line-height:1.9">
+        <li>Phone horizontal on a tripod, lens at eye level, you about 3 feet back.</li>
+        <li>Window or light <b>in front of you</b>, never behind. Overcast light through a window is the best free key light there is.</li>
+        <li>Record at 4K if you have the space — it lets you reframe and punch in when clipping.</li>
+        <li>Wired lav or your phone's mic within 18 inches. Audio kills more clips than video ever will.</li>
+        <li><b>Clap once between every script.</b> The spike in the waveform is how you find cut points fast.</li>
+        <li>Say the title of the script before each take so the transcript labels itself.</li>
+        <li>Blow the first take on purpose. It gets the stiffness out.</li>
+      </ul>
+    </div>`;
+}
+
+function toggleSel(id) {
+  selected.has(id) ? selected.delete(id) : selected.add(id);
+  render();
+}
+
+async function markShot() {
+  const today = new Date().toISOString().slice(0, 10);
+  for (const id of selected) {
+    await api('/scripts/' + id, { method: 'PATCH', body: JSON.stringify({ status: 'shot', shootDate: today }) });
+  }
+  await load();
+  toast('Batch marked as shot');
+}
+
+// ── Teleprompter ─────────────────────────────────────────────────────────────
+let pQueue = [], pIdx = 0, pSpeed = 38, pSize = 42, pTimer = null, pPos = 0;
+
+function openPrompter(ids) {
+  pQueue = ids.map(id => S.scripts.find(s => s.id === id)).filter(Boolean);
+  if (!pQueue.length) return;
+  pIdx = 0;
+  $('#prompter').classList.add('on');
+  loadPrompterScript();
+  if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('portrait').catch(() => {});
+  }
+}
+
+function loadPrompterScript() {
+  const s = pQueue[pIdx];
+  $('#ptitle').textContent = `${pIdx + 1} / ${pQueue.length} — ${s.title}`;
+  $('#ptext').innerHTML =
+    `<div class="phook">${esc(s.hook)}</div><div>${esc(s.body).replace(/\n/g, '<br>')}</div>` +
+    (s.cta ? `<div class="pcta">${esc(s.cta)}</div>` : '');
+  $('#ptext').scrollTop = 0;
+  pPos = 0;
+  stopScroll();
+  updateSpeedLabel();
+}
+
+function updateSpeedLabel() {
+  $('#pspeed').textContent = `${pSpeed} px/s · ${pSize}px`;
+  $('#ptext').style.setProperty('--psize', pSize + 'px');
+}
+
+function startScroll() {
+  if (pTimer) return;
+  $('#pplay').textContent = 'Pause';
+  let last = performance.now();
+  const el = $('#ptext');
+  pPos = el.scrollTop;
+  pTimer = setInterval(() => {
+    const now = performance.now();
+    pPos += pSpeed * ((now - last) / 1000);
+    last = now;
+    el.scrollTop = pPos;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) stopScroll();
+  }, 33);
+}
+
+function stopScroll() {
+  clearInterval(pTimer); pTimer = null;
+  $('#pplay').textContent = 'Play';
+}
+
+$('#pplay').onclick = () => (pTimer ? stopScroll() : startScroll());
+$('#pslower').onclick = () => { pSpeed = Math.max(8, pSpeed - 6); updateSpeedLabel(); };
+$('#pfaster').onclick = () => { pSpeed = Math.min(140, pSpeed + 6); updateSpeedLabel(); };
+$('#psmaller').onclick = () => { pSize = Math.max(20, pSize - 4); updateSpeedLabel(); };
+$('#pbigger').onclick = () => { pSize = Math.min(80, pSize + 4); updateSpeedLabel(); };
+$('#prestart').onclick = () => { $('#ptext').scrollTop = 0; pPos = 0; stopScroll(); };
+$('#pnext').onclick = () => {
+  if (pIdx < pQueue.length - 1) { pIdx++; loadPrompterScript(); }
+  else toast('That was the last one. Nice work.');
+};
+$('#pclose').onclick = () => { stopScroll(); $('#prompter').classList.remove('on'); };
+$('#ptext').onclick = () => (pTimer ? stopScroll() : startScroll());
+document.addEventListener('keydown', e => {
+  if (!$('#prompter').classList.contains('on')) return;
+  if (e.code === 'Space') { e.preventDefault(); pTimer ? stopScroll() : startScroll(); }
+  if (e.code === 'ArrowUp') pSpeed = Math.min(140, pSpeed + 6), updateSpeedLabel();
+  if (e.code === 'ArrowDown') pSpeed = Math.max(8, pSpeed - 6), updateSpeedLabel();
+  if (e.code === 'Escape') $('#pclose').click();
+});
+
+// ── Clips ────────────────────────────────────────────────────────────────────
+let activeUpload = null;
+
+function clips() {
+  $('#app').innerHTML = `
+    <h2>Clips</h2>
+    <p class="sub">Upload the raw batch, mark in and out points, render vertical clips with normalized audio.</p>
+
+    <div class="card">
+      <h3 style="margin:0 0 10px">Upload raw footage</h3>
+      <input type="file" id="file" accept="video/*">
+      <div class="bar-prog" id="upprog" style="display:none"><i></i></div>
+      <p class="muted tiny" style="margin:10px 0 0">
+        Large files are fine — up to 4 GB. ${S.capabilities.ffmpeg ? '' : '<span class="warn">ffmpeg is not installed, so rendering will fail until you run npm install.</span>'}
+      </p>
+    </div>
+
+    ${S.uploads.length ? `<div class="card">
+      <h3 style="margin:0 0 10px">Raw footage</h3>
+      ${S.uploads.map(u => `<div class="row" style="padding:8px 0;border-top:1px solid var(--line)">
+        <span style="flex:1">${esc(u.originalName)}
+          <span class="tiny muted"> · ${(u.size/1e9).toFixed(2)} GB${u.duration?` · ${fmtTime(u.duration)}`:''}</span></span>
+        <button class="btn sm" onclick="openTrimmer('${u.id}')">Cut clips</button>
+        <button class="btn sm ghost" onclick="delUpload('${u.id}')">Delete</button>
+      </div>`).join('')}
+    </div>` : ''}
+
+    <div id="trimmer"></div>
+
+    <div class="card">
+      <h3 style="margin:0 0 10px">Rendered clips (${S.clips.length})</h3>
+      ${S.clips.length ? S.clips.map(c => `
+        <div style="padding:11px 0;border-top:1px solid var(--line)">
+          <div class="row">
+            <span style="flex:1"><b>${esc(c.title)}</b>
+              <span class="tiny muted"> · ${fmtTime(c.startSec)}–${fmtTime(c.endSec)} · ${esc(c.format)}</span></span>
+            <span class="chip ${c.status==='rendered'?'ok':c.status==='error'?'bad':''}">${esc(c.status)}</span>
+          </div>
+          ${c.status === 'rendered' ? `<div class="row" style="margin-top:8px">
+            <button class="btn sm ghost" onclick="window.open('/api/clips/${c.id}/download')">Download</button>
+            <button class="btn sm" onclick="genCaptions('${c.id}')">Generate captions</button>
+            <button class="btn sm ghost" onclick="delClip('${c.id}')">Delete</button>
+          </div>` : `<div class="row" style="margin-top:8px">
+            <span class="tiny muted" id="st-${c.id}">${esc(c.status)}…</span>
+            <button class="btn sm ghost" onclick="delClip('${c.id}')">Delete</button></div>`}
+          ${Object.keys(c.captions || {}).length ? `<div style="margin-top:10px">
+            ${Object.entries(c.captions).map(([p, text]) => `
+              <div style="margin-bottom:8px">
+                <div class="tiny muted" style="margin-bottom:3px">${esc(META.platforms[p]?META.platforms[p].name:p)}
+                  <button class="btn sm ghost" style="padding:2px 8px;font-size:11px"
+                    onclick="copyText(${JSON.stringify(text).replace(/"/g,'&quot;')})">Copy</button></div>
+                <div class="tiny" style="white-space:pre-wrap;background:var(--panel2);padding:9px;border-radius:7px">${esc(text)}</div>
+              </div>`).join('')}
+          </div>` : ''}
+        </div>`).join('') : '<p class="muted tiny" style="margin:0">No clips yet.</p>'}
+    </div>`;
+
+  const fileInput = $('#file');
+  if (fileInput) fileInput.onchange = uploadFile;
+  S.clips.filter(c => c.status === 'queued').forEach(pollClip);
+}
+
+function uploadFile(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const fd = new FormData();
+  fd.append('video', f);
+  const bar = $('#upprog');
+  bar.style.display = 'block';
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/upload');
+  xhr.upload.onprogress = ev => {
+    if (ev.lengthComputable) bar.querySelector('i').style.width = (ev.loaded / ev.total * 100) + '%';
+  };
+  xhr.onload = async () => {
+    bar.style.display = 'none';
+    if (xhr.status === 200) { await load(); toast('Uploaded'); }
+    else toast('Upload failed', 4000);
+  };
+  xhr.onerror = () => { bar.style.display = 'none'; toast('Upload failed', 4000); };
+  xhr.send(fd);
+}
+
+async function delUpload(id) {
+  if (!confirm('Delete this raw file? Clips already rendered from it are kept.')) return;
+  await api('/uploads/' + id, { method: 'DELETE' });
+  await load();
+}
+
+function openTrimmer(uploadId) {
+  activeUpload = uploadId;
+  const shotScripts = S.scripts.filter(s => ['shot', 'ready', 'clipped'].includes(s.status));
+  $('#trimmer').innerHTML = `
+    <div class="card">
+      <h3 style="margin:0 0 10px">Cut a clip</h3>
+      <video id="vid" src="/api/uploads/${uploadId}/file" controls preload="metadata"></video>
+      <div class="trim">
+        <button class="btn sm" onclick="setMark('in')">Set IN</button>
+        <span class="mono chip" id="mIn">0:00</span>
+        <button class="btn sm" onclick="setMark('out')">Set OUT</button>
+        <span class="mono chip" id="mOut">0:00</span>
+        <button class="btn sm ghost" onclick="previewMark()">Preview</button>
+        <span class="mono muted tiny" id="mLen"></span>
+      </div>
+      <label>Attach to script (sets title, pillar and platforms)</label>
+      <select id="cScript">
+        <option value="">— none —</option>
+        ${shotScripts.map(s => `<option value="${s.id}">${esc(s.title)}</option>`).join('')}
+      </select>
+      <label>Title</label>
+      <input id="cTitle" placeholder="Clip title">
+      <div class="row" style="margin-top:12px">
+        <div style="flex:1;min-width:130px"><label style="margin-top:0">Format</label>
+          <select id="cFormat">
+            <option value="vertical">Vertical 9:16</option>
+            <option value="square">Square 1:1 (LinkedIn)</option>
+            <option value="wide">Wide 16:9 (YouTube)</option>
+          </select></div>
+        <div style="flex:1;min-width:130px"><label style="margin-top:0">Crop</label>
+          <select id="cCrop">
+            <option value="center">Center</option><option value="left">Left</option><option value="right">Right</option>
+          </select></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" onclick="makeClip()">Render clip</button>
+        <button class="btn ghost" onclick="$('#trimmer').innerHTML=''">Close</button>
+      </div>
+    </div>`;
+  $('#cScript').onchange = e => {
+    const s = S.scripts.find(x => x.id === e.target.value);
+    if (s) { $('#cTitle').value = s.title; $('#cFormat').value = s.format || 'vertical'; }
+  };
+}
+
+let markIn = 0, markOut = 0;
+function setMark(which) {
+  const t = $('#vid').currentTime;
+  if (which === 'in') { markIn = t; $('#mIn').textContent = fmtTime(t); }
+  else { markOut = t; $('#mOut').textContent = fmtTime(t); }
+  $('#mLen').textContent = markOut > markIn ? `${(markOut - markIn).toFixed(1)}s` : '';
+}
+function previewMark() {
+  const v = $('#vid');
+  v.currentTime = markIn; v.play();
+  const stop = () => { if (v.currentTime >= markOut) { v.pause(); v.removeEventListener('timeupdate', stop); } };
+  v.addEventListener('timeupdate', stop);
+}
+
+async function makeClip() {
+  if (!(markOut > markIn)) return toast('Set an IN and OUT point first');
+  try {
+    const clip = await api('/clips', {
+      method: 'POST',
+      body: JSON.stringify({
+        uploadId: activeUpload,
+        scriptId: $('#cScript').value || null,
+        title: $('#cTitle').value || null,
+        startSec: markIn, endSec: markOut,
+        format: $('#cFormat').value, crop: $('#cCrop').value,
+      }),
+    });
+    await load();
+    toast('Rendering…');
+    pollClip(clip);
+  } catch (e) { toast('Failed: ' + e.message, 4200); }
+}
+
+function pollClip(clip) {
+  const tick = async () => {
+    try {
+      const st = await api(`/clips/${clip.id}/status`);
+      const el = document.getElementById('st-' + clip.id);
+      if (el) el.textContent = st.status === 'rendering' ? `rendering ${st.progress}%` : st.status;
+      if (st.status === 'done') { await load(); toast('Clip ready'); return; }
+      if (st.status === 'error') { await load(); toast('Render failed: ' + (st.error || '').slice(0, 90), 6000); return; }
+      setTimeout(tick, 1500);
+    } catch (e) { /* view changed */ }
+  };
+  setTimeout(tick, 1200);
+}
+
+async function delClip(id) {
+  if (!confirm('Delete this clip?')) return;
+  await api('/clips/' + id, { method: 'DELETE' });
+  await load();
+}
+
+async function genCaptions(id) {
+  toast('Writing captions…');
+  try {
+    const r = await api(`/clips/${id}/captions`, { method: 'POST', body: '{}' });
+    await load();
+    toast(r.usedFallback ? 'Captions written from templates (no API key)' : 'Captions ready');
+  } catch (e) { toast('Failed: ' + e.message, 4200); }
+}
+
+function copyText(t) {
+  navigator.clipboard.writeText(t).then(() => toast('Copied'), () => toast('Copy failed'));
+}
+
+// ── Calendar ─────────────────────────────────────────────────────────────────
+function calendar() {
+  const byDate = {};
+  for (const e of S.calendar) (byDate[e.date] = byDate[e.date] || []).push(e);
+  const dates = Object.keys(byDate).sort();
+
+  $('#app').innerHTML = `
+    <h2>Posting calendar</h2>
+    <p class="sub">Slots come from Settings. Generate fills them with rendered clips, matching each slot's pillar.</p>
+
+    <div class="card">
+      <div class="row">
+        <button class="btn" onclick="genCalendar()">Generate 4 weeks</button>
+        <button class="btn ghost" onclick="clearCalendar()">Clear unposted</button>
+      </div>
+      <p class="muted tiny" style="margin:12px 0 0">
+        Weekly slots: ${S.settings.slots.length} · one clip fans out to every platform in its slot.
+      </p>
+    </div>
+
+    ${dates.length ? dates.map(d => `
+      <div class="cal-day">
+        <h4>${new Date(d + 'T12:00:00').toDateString()}</h4>
+        ${byDate[d].map(e => `<div class="slotline">
+          <span class="mono tiny muted" style="width:48px;flex:0 0 auto">${esc(e.time)}</span>
+          <div style="flex:1">
+            <div>${esc(META.platforms[e.platform]?META.platforms[e.platform].name:e.platform)}
+              — ${esc(e.title)}</div>
+            ${e.caption ? `<div class="tiny muted" style="white-space:pre-wrap;margin-top:4px">${esc(e.caption.slice(0,140))}${e.caption.length>140?'…':''}</div>` : ''}
+          </div>
+          <span class="chip ${e.status==='posted'?'ok':''}">${esc(e.status)}</span>
+        </div>`).join('')}
+      </div>`).join('') : '<div class="empty">Nothing scheduled yet.</div>'}`;
+}
+
+async function genCalendar() {
+  const r = await api('/calendar/generate', { method: 'POST', body: JSON.stringify({ weeks: 4 }) });
+  await load();
+  toast(r.created ? `${r.created} posts scheduled` : (r.note || 'Nothing to schedule'), 4000);
+}
+
+async function clearCalendar() {
+  if (!confirm('Clear all unposted calendar entries?')) return;
+  await api('/calendar/clear', { method: 'POST', body: '{}' });
+  await load();
+}
+
+// ── Publish queue ────────────────────────────────────────────────────────────
+function queue() {
+  const today = new Date().toISOString().slice(0, 10);
+  const due = S.calendar.filter(e => e.status === 'scheduled' && e.date <= today);
+  const soon = S.calendar.filter(e => e.status === 'scheduled' && e.date > today).slice(0, 12);
+
+  const card = e => {
+    const clip = S.clips.find(c => c.id === e.clipId);
+    const cap = e.caption || (clip && clip.captions[e.platform]) || '';
+    return `<div class="card" style="margin-bottom:12px">
+      <div class="row" style="margin-bottom:8px">
+        <b style="flex:1">${esc(META.platforms[e.platform]?META.platforms[e.platform].name:e.platform)}</b>
+        <span class="mono tiny muted">${esc(e.date)} ${esc(e.time)}</span>
+      </div>
+      <div style="margin-bottom:8px">${esc(e.title)}</div>
+      ${cap ? `<div class="tiny" style="white-space:pre-wrap;background:var(--panel2);padding:10px;border-radius:8px;margin-bottom:10px">${esc(cap)}</div>` : '<p class="tiny muted">No caption yet — generate one on the Clips tab.</p>'}
+      <div class="row">
+        ${clip && clip.file ? `<button class="btn sm ghost" onclick="window.open('/api/clips/${clip.id}/download')">Download video</button>` : ''}
+        ${cap ? `<button class="btn sm ghost" onclick="copyText(${JSON.stringify(cap).replace(/"/g,'&quot;')})">Copy caption</button>` : ''}
+        <button class="btn sm" onclick="markPosted('${e.id}')">Mark posted</button>
+      </div>
+    </div>`;
+  };
+
+  $('#app').innerHTML = `
+    <h2>Publish queue</h2>
+    <p class="sub">Until the platform APIs are approved, this is the fast manual path: download, copy, post, tap done.</p>
+    <h3 style="margin:0 0 10px">Due now (${due.length})</h3>
+    ${due.length ? due.map(card).join('') : '<div class="empty">Nothing due. Enjoy it.</div>'}
+    ${soon.length ? `<h3 style="margin:24px 0 10px">Coming up</h3>${soon.map(card).join('')}` : ''}`;
+}
+
+async function markPosted(id) {
+  await api('/calendar/' + id, { method: 'PATCH', body: JSON.stringify({ status: 'posted' }) });
+  await load();
+  toast('Marked posted');
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+function settings() {
+  const st = S.settings;
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  $('#app').innerHTML = `
+    <h2>Settings</h2>
+    <p class="sub">Model: ${esc(S.capabilities.model)} ·
+      AI ${S.capabilities.ai ? '<span class="ok">connected</span>' : '<span class="warn">not configured</span>'} ·
+      ffmpeg ${S.capabilities.ffmpeg ? '<span class="ok">ready</span>' : '<span class="bad">missing</span>'}</p>
+
+    <div class="card">
+      <h3 style="margin:0 0 4px">Shoot block</h3>
+      <div class="row">
+        <div style="flex:1;min-width:150px"><label>Day</label>
+          <select id="sDay">${days.map((d,i)=>`<option value="${i}" ${st.shootDay===i?'selected':''}>${d}</option>`).join('')}</select></div>
+        <div style="flex:1;min-width:120px"><label>Time</label>
+          <input id="sTime" type="time" value="${esc(st.shootTime)}"></div>
+        <div style="flex:1;min-width:120px"><label>Minutes</label>
+          <input id="sMin" type="number" value="${st.shootMinutes}"></div>
+        <div style="flex:1;min-width:120px"><label>Clips target</label>
+          <input id="sClips" type="number" value="${st.clipsPerShoot}"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 4px">Anthropic API key</h3>
+      <p class="muted tiny" style="margin:0">Used for script writing and caption generation. Stored in this app's data file, never sent anywhere else.</p>
+      <label>Key</label>
+      <input id="sKey" type="password" placeholder="sk-ant-…" value="${esc(st.anthropicKey)}">
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 4px">Handles</h3>
+      ${Object.keys(META.platforms).map(p => `
+        <label>${esc(META.platforms[p].name)}</label>
+        <input data-h="${p}" value="${esc(st.handles[p]||'')}" placeholder="@handle or page name">`).join('')}
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 10px">Weekly posting slots</h3>
+      <table><tr><th>Day</th><th>Time</th><th>Platforms</th><th>Pillars</th></tr>
+        ${st.slots.map(s => `<tr><td>${days[s.day]}</td><td class="mono">${esc(s.time)}</td>
+          <td class="tiny">${s.platforms.map(p=>esc(META.platforms[p]?META.platforms[p].name:p)).join(', ')}</td>
+          <td class="tiny muted">${s.pillars.join(', ')}</td></tr>`).join('')}
+      </table>
+      <p class="muted tiny" style="margin:12px 0 0">Edit these in <span class="mono">content/seed.js</span> → DEFAULT_SLOTS, then restart.</p>
+    </div>
+
+    <button class="btn" onclick="saveSettings()">Save settings</button>`;
+}
+
+async function saveSettings() {
+  const handles = {};
+  document.querySelectorAll('[data-h]').forEach(i => { handles[i.dataset.h] = i.value; });
+  await api('/settings', {
+    method: 'POST',
+    body: JSON.stringify({
+      shootDay: +$('#sDay').value,
+      shootTime: $('#sTime').value,
+      shootMinutes: +$('#sMin').value,
+      clipsPerShoot: +$('#sClips').value,
+      anthropicKey: $('#sKey').value,
+      handles,
+    }),
+  });
+  await load();
+  toast('Saved');
+}
+
+load().catch(e => { $('#app').innerHTML = `<div class="empty">Failed to load: ${esc(e.message)}</div>`; });
+</script>
+</body>
+</html>

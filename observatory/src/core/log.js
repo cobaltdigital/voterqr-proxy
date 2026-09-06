@@ -8,8 +8,9 @@ function emit(level, scope, message, fields) {
   const extra = fields && Object.keys(fields).length
     ? ' ' + Object.entries(fields).map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' ')
     : '';
-  const line = `[${level}] ${scope}: ${message}${extra}`;
-  (level === 'error' ? console.error : console.log)(line);
+  // Everything goes to stderr so stdout carries only the command's actual output —
+  // `observatory overview | jq` has to work.
+  process.stderr.write(`[${level}] ${scope}: ${message}${extra}\n`);
 }
 
 function logger(scope) {

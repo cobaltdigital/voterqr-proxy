@@ -1,5 +1,5 @@
 'use strict';
-const { id, now, coverage, topicalOverlap } = require('../core/util');
+const { id, now, coverage } = require('../core/util');
 const { run, all, get } = require('../db');
 const audit = require('../core/audit');
 
@@ -71,15 +71,7 @@ function search(db, query, { domain = null, clientScope = null, limit = 10, minS
     .slice(0, limit);
 }
 
-/** Entries covering the same ground as `text` — symmetric, unlike search. */
-const similarEntries = (db, text, { domain = null, threshold = 0.3, excludeId = null } = {}) =>
-  current(db, { domain, limit: 1000 })
-    .filter((entry) => entry.id !== excludeId)
-    .map((entry) => ({ ...entry, score: topicalOverlap(text, `${entry.title} ${entry.body}`) }))
-    .filter((entry) => entry.score >= threshold)
-    .sort((a, b) => b.score - a.score);
-
 const stats = (db) =>
   all(db, `SELECT domain, status, COUNT(*) AS entries FROM kb_entries GROUP BY domain, status ORDER BY domain`);
 
-module.exports = { create, supersede, setStatus, byId, current, search, similarEntries, stats };
+module.exports = { create, supersede, setStatus, byId, current, search, stats };

@@ -14,6 +14,10 @@ const workflows = require('../src/reasoning/workflows');
 const reporting = require('../src/reasoning/reporting');
 const strategy = require('../src/reasoning/strategy');
 const knowledgeGraph = require('../src/stores/knowledgeGraph');
+const inquiryStore = require('../src/stores/inquiryStore');
+const annotations = require('../src/reasoning/annotations');
+const scheduler = require('../src/scheduler');
+const workers = require('../src/workers');
 const { seed } = require('../scripts/seed');
 
 const args = process.argv.slice(2);
@@ -40,7 +44,12 @@ const USAGE = `observatory <command>
   curate                       curation worker: dedupe, classify, route, promote or queue
   status                       status worker: contradictions and supersessions
   trends                       trends worker: anomalies, patterns, correlations
-  pipeline [--skip-collection] run the full left-to-right pass
+  pipeline [--skip-collection] run the full left-to-right pass inline
+  workers [--once] [--interval=60]
+                               drain the job queue: schedule due sources, then run the stages
+  jobs                         pending/failed jobs and what each source is next due
+  schedule <sourceId> <minutes>
+                               set how often a source is collected
   review                       list open review items
   review-decide <id> <decision> [--detail=] [--rationale=] [--supersedes=]
                                decisions: ${review.DECISIONS.join(' | ')}
@@ -49,9 +58,14 @@ const USAGE = `observatory <command>
   report [--safe]              weekly market brief
   brief [--client=] [--public] opportunity brief
   graph "<query>"              federated search
+  inquiry "<question>" [--domain=] [--client=]
+                               add an open question to the inquiry store
+  annotate <type> <id> "<note>" [--kind=note|rationale|approval|platform_review]
+                               attach a note to any object
   connectors                   list connectors, credentials and cost
   overview                     live counts for every stage
-  serve [--port=4000]          dashboard + JSON API
+  serve [--port=4000] [--with-workers]
+                               dashboard + JSON API
 
 Environment: OBSERVATORY_DB (default ./data/observatory.db), OBSERVATORY_OFFLINE=1 to force fixtures.`;
 
@@ -124,11 +138,53 @@ async function main() {
       return print(knowledgeGraph.search(db, query));
     }
 
+    case 'workers': {
+      if (flags.once) return print(await workers.runOnce(db));
+      const intervalMs = Number(flags.interval || 60) * 1000;
+      const stop = workers.start(db, { intervalMs });
+      process.on('SIGINT', () => { stop(); process.exit(0); });
+      return;   // keep the process alive
+    }
+
+    case 'jobs':
+      return print({
+        pending: require('../src/core/jobs').pending(db),
+        failed: dbModule.all(db, `SELECT id, type, attempts, last_error FROM jobs WHERE state = 'failed'`),
+        schedule: scheduler.upcoming(db),
+      });
+
+    case 'schedule': {
+      const [sourceId, minutes] = positional;
+      if (!sourceId || !minutes) return print('usage: schedule <sourceId> <minutes>');
+      return print(scheduler.setSchedule(db, sourceId, Number(minutes)));
+    }
+
+    case 'inquiry': {
+      const question = positional.join(' ');
+      if (!question) return print('usage: inquiry "<question>"');
+      return print({ inquiryId: inquiryStore.ask(db, {
+        question, origin: 'human', domain: flags.domain || null,
+        clientId: flags.client || null, createdBy: actor().id,
+      }) });
+    }
+
+    case 'annotate': {
+      const [objectType, objectId, ...rest] = positional;
+      const note = rest.join(' ');
+      if (!objectType || !objectId || !note) return print('usage: annotate <type> <id> "<note>"');
+      return print({ annotationId: annotations.add(db, {
+        objectType, objectId, kind: flags.kind || 'note', note, actor: actor().id,
+      }) });
+    }
+
     case 'connectors': return print(connectors.list());
     case 'overview': return print(pipeline.overview(db));
 
     case 'serve': {
       require('../src/server/app').start({ port: flags.port || process.env.PORT || 4000, db });
+      // --with-workers runs the scheduler in-process: convenient for one box, but in production
+      // run `observatory workers` separately so a slow collector cannot block the API.
+      if (flags['with-workers']) workers.start(db, { intervalMs: Number(flags.interval || 60) * 1000 });
       return;   // keep the process alive
     }
 

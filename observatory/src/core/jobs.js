@@ -27,10 +27,27 @@ function claim(db) {
 
 const complete = (db, jobId) => run(db, `UPDATE jobs SET state = 'done' WHERE id = ?`, jobId);
 
-function fail(db, jobId, error, { maxAttempts = 3 } = {}) {
+const BASE_BACKOFF_MS = 30000;
+
+/**
+ * Marks a job failed, with exponential backoff before the next attempt.
+ *
+ * The backoff is what makes retries meaningful: without pushing `run_after` into the future,
+ * the same drain loop re-claims the job immediately and burns all three attempts in one pass,
+ * which is exactly when a transient error has had no time to clear.
+ *
+ * `permanent` skips retries entirely — a job whose type has no handler will not succeed later.
+ */
+function fail(db, jobId, error, { maxAttempts = 3, permanent = false, baseBackoffMs = BASE_BACKOFF_MS } = {}) {
   const job = get(db, 'SELECT attempts FROM jobs WHERE id = ?', jobId);
-  const state = job && job.attempts >= maxAttempts ? 'failed' : 'pending';
-  run(db, `UPDATE jobs SET state = ?, last_error = ? WHERE id = ?`, state, String(error && error.message || error), jobId);
+  const exhausted = permanent || !job || job.attempts >= maxAttempts;
+  const state = exhausted ? 'failed' : 'pending';
+  const runAfter = exhausted
+    ? now()
+    : new Date(Date.now() + baseBackoffMs * 2 ** (job.attempts - 1)).toISOString();
+
+  run(db, `UPDATE jobs SET state = ?, last_error = ?, run_after = ? WHERE id = ?`,
+    state, String((error && error.message) || error), runAfter, jobId);
   return state;
 }
 
@@ -42,7 +59,7 @@ async function drain(db, handlers, { limit = 500 } = {}) {
     if (!job) break;
     const handler = handlers[job.type];
     if (!handler) {
-      fail(db, job.id, new Error(`no handler for job type ${job.type}`));
+      fail(db, job.id, new Error(`no handler for job type ${job.type}`), { permanent: true });
       results.failed += 1;
       continue;
     }

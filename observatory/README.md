@@ -8,14 +8,15 @@ Zero dependencies. Node 22's built-in `node:sqlite` and `node:http` do the work,
 moment you clone it — no install step, no services to stand up.
 
 ```bash
-node scripts/demo.js          # full pipeline, end to end, with commentary
-npm test                      # 69 tests
+npm run demo                  # full pipeline, end to end, with commentary
+npm test                      # 81 tests
 npm start                     # dashboard + API on http://localhost:4000
+npm run workers               # scheduler + queue: what you'd actually run in production
 ```
 
 ## What it does today
 
-`node scripts/demo.js` runs the whole map against the bundled fixtures and prints what happened.
+`npm run demo` runs the whole map against the bundled fixtures and prints what happened.
 On a clean database that is:
 
 - **123 artifacts** collected from five sources (internal knowledge, a competitor page, file
@@ -51,18 +52,41 @@ On a clean database that is:
    the access policy — a caller cannot forget to scope a query.
 4. **Machines detect, humans decide.** The status worker finds contradictions but never flips a
    status; the trends worker opens experiments but never writes a fact; workflow drafts always
-   require approval before dispatch.
+   require approval before dispatch. Every decision and its rationale lands in the annotation
+   ledger, attached to the object it was about — so "why does this entry say that" is answerable
+   six months later.
 
 ## Try it
 
 ```bash
 node bin/observatory.js seed          # demo clients and sources
-node bin/observatory.js pipeline      # collect → curate → status → trends → graph
+node bin/observatory.js pipeline      # collect → curate → status → trends → graph, inline
+node bin/observatory.js workers --once # the same stages, via the scheduler and job queue
+node bin/observatory.js jobs          # pending/failed jobs, and what each source is next due
 node bin/observatory.js review        # what is waiting on a human, and why
 node bin/observatory.js review-decide <id> accepted_with_detail --detail="Service-area businesses only"
 node bin/observatory.js ask "how do we recover local pack rankings?"
 node bin/observatory.js report --safe # weekly brief with client identity removed
+node bin/observatory.js inquiry "Does category match outweigh citations for service-area businesses?"
 node bin/observatory.js serve         # dashboard at :4000
+```
+
+## Running it on a schedule
+
+Two ways to drive the pipeline, sharing one implementation of every stage:
+
+- **Inline** — `observatory pipeline` runs the whole pass in one process. Good for a cron entry,
+  a demo, or a test.
+- **Queued** — `observatory workers` runs a scheduler that enqueues collection per source cadence
+  (`schedule_minutes`, default daily) and drains the queue. A slow source can't delay the rest,
+  and a crashed worker loses one job rather than a whole pass. Failed jobs back off exponentially
+  and give up after three attempts; a job type with no handler fails immediately rather than
+  retrying something that cannot succeed.
+
+```bash
+node bin/observatory.js schedule src_market_signals 60   # collect this source hourly
+node bin/observatory.js workers --interval=60            # long-running worker loop
+node bin/observatory.js serve --with-workers             # both in one process (single box)
 ```
 
 The dashboard renders the map itself: each box shows its live count, and clicking one opens the

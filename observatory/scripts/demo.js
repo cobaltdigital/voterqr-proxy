@@ -80,7 +80,9 @@ async function main() {
 
   heading('6. Draft actions from that answer');
   const drafts = workflows.fromReasoning(db, answer, { clientId: 'northside-dental' });
-  console.log(`${drafts.length} draft(s) created, all requiring approval before dispatch`);
+  const siteChanges = workflows.list(db, { status: 'draft' }).filter((d) => d.kind === 'site_change');
+  console.log(`${drafts.length} action draft(s) from the answer, ${siteChanges.length} site-change record(s) from watched trends`);
+  console.log('all require approval before dispatch — none can execute on their own');
 
   heading('7. Weekly market brief (report-safe)');
   console.log(reporting.weeklyBrief(db, { safe: true }).body);

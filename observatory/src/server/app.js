@@ -8,6 +8,9 @@ const dbModule = require('../db');
 const { logger } = require('../core/log');
 const policy = require('../core/policy');
 const pipeline = require('../pipeline');
+const scheduler = require('../scheduler');
+const workers = require('../workers');
+const jobsQueue = require('../core/jobs');
 const collection = require('../collection');
 const connectors = require('../collection/connectors');
 const review = require('../staging/review');
@@ -102,6 +105,15 @@ function buildRoutes(db) {
       ? collection.collectSource(db, ctx.body.sourceId, { force: ctx.body.force })
       : collection.collectAll(db, { kind: ctx.body.kind, force: ctx.body.force }))],
     ['POST', '/api/pipeline', async (ctx) => pipeline.runAll(db, { skipCollection: ctx.body.skipCollection })],
+
+    // Queued path: the same stages, driven by the scheduler instead of run inline.
+    ['GET', '/api/jobs', () => ({
+      pending: jobsQueue.pending(db),
+      failed: dbModule.all(db, `SELECT id, type, attempts, last_error FROM jobs WHERE state = 'failed'`),
+      schedule: scheduler.upcoming(db),
+    })],
+    ['POST', '/api/jobs/tick', async (ctx) => workers.runOnce(db, { schedule: ctx.body.schedule !== false })],
+    ['POST', '/api/schedule', (ctx) => scheduler.setSchedule(db, ctx.body.sourceId, Number(ctx.body.minutes))],
 
     ['GET', '/api/review', (ctx) => ({ items: review.open(db, { severity: ctx.query.get('severity') }) })],
     ['GET', '/api/review/:id', (ctx) => ({

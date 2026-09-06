@@ -21,7 +21,9 @@ async function collectSource(db, sourceId, opts = {}) {
   if (!collector) throw new Error(`unknown collector "${source.collector}" on source ${sourceId}`);
 
   const result = await collector.collect(db, source, opts);
-  log.info('collected', { source: source.id, collector: source.collector, items: result.items ?? 0, skipped: result.skipped });
+  const fields = { source: source.id, collector: source.collector, items: result.items ?? 0 };
+  if (result.skipped && (!Array.isArray(result.skipped) || result.skipped.length)) fields.skipped = result.skipped;
+  log.info('collected', fields);
   return { sourceId, ...result };
 }
 

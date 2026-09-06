@@ -6,6 +6,7 @@ const curationWorker = require('./staging/curationWorker');
 const statusWorker = require('./staging/statusWorker');
 const trendsWorker = require('./staging/trendsWorker');
 const knowledgeGraph = require('./stores/knowledgeGraph');
+const workflows = require('./reasoning/workflows');
 
 const log = logger('pipeline');
 
@@ -22,6 +23,7 @@ async function runAll(db, { kind = null, skipCollection = false, ...opts } = {})
   result.curation = curationWorker.run(db, opts);
   result.status = statusWorker.run(db, opts);
   result.trends = trendsWorker.run(db, opts);
+  result.siteChangeDrafts = workflows.fromTrends(db).length;
   result.graph = knowledgeGraph.rebuild(db);
   result.tookMs = Date.now() - started;
 
@@ -84,6 +86,13 @@ function overview(db) {
       briefs: count(db, 'SELECT COUNT(*) FROM opportunity_briefs'),
       graph_nodes: count(db, 'SELECT COUNT(*) FROM graph_nodes'),
       graph_edges: count(db, 'SELECT COUNT(*) FROM graph_edges'),
+    },
+    queue: {
+      pending: count(db, `SELECT COUNT(*) FROM jobs WHERE state = 'pending'`),
+      running: count(db, `SELECT COUNT(*) FROM jobs WHERE state = 'running'`),
+      failed: count(db, `SELECT COUNT(*) FROM jobs WHERE state = 'failed'`),
+      next_due: all(db, `SELECT id, name, next_run_at FROM sources WHERE enabled = 1
+                         ORDER BY COALESCE(next_run_at, '') LIMIT 5`),
     },
     audit: {
       transitions: count(db, 'SELECT COUNT(*) FROM promotion_audit'),

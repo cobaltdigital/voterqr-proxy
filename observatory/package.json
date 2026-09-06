@@ -9,6 +9,7 @@
     "start": "node --disable-warning=ExperimentalWarning bin/observatory.js serve",
     "seed": "node --disable-warning=ExperimentalWarning bin/observatory.js seed",
     "pipeline": "node --disable-warning=ExperimentalWarning bin/observatory.js pipeline",
+    "workers": "node --disable-warning=ExperimentalWarning bin/observatory.js workers",
     "demo": "node --disable-warning=ExperimentalWarning scripts/demo.js",
     "test": "node --test --no-warnings \"test/*.test.js\"",
     "reset": "rm -rf data && node --disable-warning=ExperimentalWarning bin/observatory.js migrate"

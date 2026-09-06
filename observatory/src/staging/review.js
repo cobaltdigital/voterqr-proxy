@@ -5,6 +5,7 @@ const { logger } = require('../core/log');
 const audit = require('../core/audit');
 const policy = require('../core/policy');
 const domainKb = require('../stores/domainKb');
+const annotations = require('../reasoning/annotations');
 const { promote, decline } = require('./promote');
 
 const log = logger('review');
@@ -100,6 +101,19 @@ function decide(db, reviewId, { principal, decision, detail = null, rationale = 
   run(db, `INSERT INTO review_decisions (id, review_id, decision, detail, rationale, actor, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
     id('dec'), reviewId, decision, detail, rationale, actor, now());
+
+  // The reviewer's reasoning follows the object it was about, not just the queue item — six
+  // months later the question is "why does this entry say that", asked of the entry.
+  if (rationale || detail) {
+    const note = [rationale, detail && `Added detail: ${detail}`].filter(Boolean).join('\n');
+    annotations.add(db, { objectType: 'review', objectId: reviewId, kind: 'rationale', note, actor });
+    if (result.kbEntryId) {
+      annotations.add(db, {
+        objectType: 'kb_entry', objectId: result.kbEntryId, kind: 'rationale',
+        note: `${decision}: ${note}`, actor,
+      });
+    }
+  }
 
   if (decision !== 'critical') {
     run(db, `UPDATE review_queue SET state = 'decided', decided_at = ? WHERE id = ?`, now(), reviewId);

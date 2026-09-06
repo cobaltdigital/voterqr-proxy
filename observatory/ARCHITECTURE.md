@@ -108,6 +108,28 @@ requirement *and* from the unrouted trust penalty — penalising a meeting note 
 marketing domain was a bug, not a policy. They are not exempt from risk: the confidential renewal
 note in the fixtures still lands in critical review.
 
+### Scheduling is separate from execution
+
+`scheduler.js` decides what is due and enqueues it; `workers.js` drains the queue. Neither knows
+how the other is deployed, so the same code runs as a single process (`serve --with-workers`), as
+a separate worker fleet, or inline in a test.
+
+Cadence lives on the source, not in the scheduler, so a connector polled hourly and a document
+import run quarterly coexist without either dictating the other's rhythm. A source already holding
+a pending job is skipped, which makes the scheduler safe to run on a short interval.
+
+Retry backoff matters more than it looks: without pushing `run_after` into the future on failure,
+one drain loop re-claims the failing job immediately and spends all three attempts in the moment a
+transient error has had no time to clear. Jobs whose type has no handler skip retries entirely —
+they will not succeed later.
+
+### Drafts carry provenance
+
+`workflow_drafts.ref_type`/`ref_id` name what produced a draft, with a unique index over
+`(kind, ref_type, ref_id)`. That is what lets the trends worker run every hour without producing a
+new site-change record for the same detection each time. Idempotence by construction beats
+remembering to check.
+
 ## Extending it
 
 | To change | Touch | Everything else stays |
@@ -123,8 +145,9 @@ note in the fixtures still lands in critical review.
 
 ## Testing
 
-69 tests, no fixtures on disk, each with its own in-memory database. They assert behaviour rather
+81 tests, no fixtures on disk, each with its own in-memory database. They assert behaviour rather
 than implementation: risky content escalates however trusted its source; a viewer cannot decide a
 review item over HTTP; one client's search never returns another's rows; a correlation opens a
 question instead of asserting a cause; a second pipeline pass is a no-op; a candidate no store can
-hold is queued rather than lost.
+hold is queued rather than lost; a failing job backs off instead of burning its retries in one
+pass; the same trend detection does not produce a second draft.

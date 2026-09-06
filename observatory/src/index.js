@@ -45,5 +45,7 @@ module.exports = {
   strategy: require('./reasoning/strategy'),
 
   pipeline: require('./pipeline'),
+  scheduler: require('./scheduler'),
+  workers: require('./workers'),
   server: require('./server/app'),
 };

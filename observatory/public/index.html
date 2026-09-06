@@ -83,6 +83,7 @@
     <button id="ask-btn">Ask</button>
     <button id="brief-btn">Weekly brief</button>
     <button id="refresh-btn">Refresh</button>
+    <button id="tick-btn">Tick workers</button>
     <button id="run-btn" class="primary">Run pipeline</button>
   </div>
 </header>
@@ -218,9 +219,12 @@ function renderMap() {
   });
 
   const o = overview;
+  const queue = o.queue.pending || o.queue.running
+    ? ` · ${o.queue.pending + o.queue.running} job(s) queued`
+    : (o.queue.failed ? ` · ⚠ ${o.queue.failed} failed job(s)` : '');
   document.getElementById('summary').textContent =
     `${o.staging.artifacts} artifacts · ${o.stores.kb_entries} current KB entries · ${o.stores.claims} claims / ${o.stores.citations} citations · ` +
-    `${o.staging.review_open} awaiting review (${o.staging.review_critical} critical) · ${o.audit.transitions} audited transitions`;
+    `${o.staging.review_open} awaiting review (${o.staging.review_critical} critical) · ${o.audit.transitions} audited transitions${queue}`;
 }
 
 async function refresh() {
@@ -537,6 +541,15 @@ drawerBody.addEventListener('click', async (event) => {
 document.getElementById('refresh-btn').onclick = () => refresh().then(() => toast('Refreshed'));
 document.getElementById('ask-btn').onclick = () => openAsk();
 document.getElementById('brief-btn').onclick = () => openView('reports');
+document.getElementById('tick-btn').onclick = async (event) => {
+  event.target.disabled = true;
+  try {
+    const result = await post('/api/jobs/tick', {});
+    toast(`Queued ${result.queued.collect} collection(s); ran ${result.drained.done} job(s)`);
+    await refresh();
+  } catch (err) { toast(err.message); } finally { event.target.disabled = false; }
+};
+
 document.getElementById('run-btn').onclick = async (event) => {
   event.target.disabled = true;
   try {

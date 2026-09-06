@@ -1,0 +1,19 @@
+{
+  "name": "observatory",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Marketing intelligence pipeline: collection → staging + curation → curated stores → reasoning + outputs, with a human review gate.",
+  "main": "src/index.js",
+  "bin": { "observatory": "bin/observatory.js" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning bin/observatory.js serve",
+    "seed": "node --disable-warning=ExperimentalWarning bin/observatory.js seed",
+    "pipeline": "node --disable-warning=ExperimentalWarning bin/observatory.js pipeline",
+    "demo": "node --disable-warning=ExperimentalWarning scripts/demo.js",
+    "test": "node --test --no-warnings \"test/*.test.js\"",
+    "reset": "rm -rf data && node --disable-warning=ExperimentalWarning bin/observatory.js migrate"
+  },
+  "engines": { "node": ">=22.5.0" },
+  "dependencies": {},
+  "devDependencies": {}
+}

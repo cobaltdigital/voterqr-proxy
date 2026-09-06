@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Observatory — Infrastructure Map</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #fff; --ink: #1f2430; --muted: #6b7385; --line: #d8dce6;
+    --input: #c7d2fe; --input-ink: #1e3a8a;
+    --worker: #dbe4ff; --worker-ink: #1e40af;
+    --store: #b9f0dd; --store-ink: #065f46;
+    --external: #fde68a; --external-ink: #78350f;
+    --gate: #fecaca; --gate-ink: #7f1d1d;
+    --accent: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+           padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  h1 { font-size: 16px; margin: 0; letter-spacing: .2px; }
+  header .meta { color: var(--muted); font-size: 12px; }
+  header .actions { margin-left: auto; display: flex; gap: 8px; }
+  button { font: inherit; border: 1px solid var(--line); background: #fff; color: var(--ink);
+           border-radius: 7px; padding: 6px 11px; cursor: pointer; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { opacity: .9; color: #fff; }
+  button:disabled { opacity: .5; cursor: progress; }
+
+  .map { display: grid; grid-template-columns: repeat(5, minmax(210px, 1fr)); gap: 14px; padding: 18px 20px 40px; align-items: start; }
+  .stage { background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; padding: 12px; }
+  .stage > h2 { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 2px 0 12px; }
+  .node { border-radius: 8px; padding: 9px 11px; margin-bottom: 10px; cursor: pointer;
+          border: 1px solid rgba(0,0,0,.07); transition: transform .08s ease, box-shadow .08s ease; }
+  .node:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(20,25,40,.13); }
+  .node .name { font-weight: 650; font-size: 13px; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .node .lines { color: rgba(0,0,0,.62); font-size: 11.5px; margin-top: 3px; }
+  .node .lines div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge { font-variant-numeric: tabular-nums; font-size: 11px; font-weight: 700;
+           background: rgba(255,255,255,.72); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+  .badge.alert { background: #dc2626; color: #fff; }
+  .t-input { background: var(--input); color: var(--input-ink); }
+  .t-worker { background: var(--worker); color: var(--worker-ink); }
+  .t-store { background: var(--store); color: var(--store-ink); }
+  .t-external { background: var(--external); color: var(--external-ink); }
+  .t-gate { background: var(--gate); color: var(--gate-ink); }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; padding: 0 20px 26px; color: var(--muted); font-size: 12px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+
+  .drawer { position: fixed; top: 0; right: 0; height: 100%; width: min(620px, 96vw); background: var(--panel);
+            border-left: 1px solid var(--line); box-shadow: -8px 0 26px rgba(15,20,35,.15);
+            transform: translateX(100%); transition: transform .18s ease; display: flex; flex-direction: column; z-index: 10; }
+  .drawer.open { transform: none; }
+  .drawer header { position: static; border-bottom: 1px solid var(--line); }
+  .drawer .body { overflow: auto; padding: 14px 18px 30px; }
+  .card { border: 1px solid var(--line); border-radius: 9px; padding: 11px 13px; margin-bottom: 11px; background: #fff; }
+  .card h3 { margin: 0 0 4px; font-size: 13.5px; }
+  .card .sub { color: var(--muted); font-size: 12px; }
+  .card pre { white-space: pre-wrap; word-break: break-word; background: #f4f6fa; border-radius: 6px;
+              padding: 9px; font-size: 11.5px; margin: 8px 0 0; max-height: 260px; overflow: auto; }
+  .pill { display: inline-block; font-size: 11px; border-radius: 999px; padding: 1px 8px; background: #eef1f7; color: var(--muted); margin-right: 5px; }
+  .pill.critical { background: #fee2e2; color: #991b1b; }
+  .row { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 9px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  th, td { text-align: left; padding: 5px 7px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  input[type=text] { font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; width: 100%; }
+  .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #111827; color: #fff;
+           padding: 9px 15px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; z-index: 20; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Observatory</h1>
+  <span class="meta" id="summary">loading…</span>
+  <div class="actions">
+    <button id="ask-btn">Ask</button>
+    <button id="brief-btn">Weekly brief</button>
+    <button id="refresh-btn">Refresh</button>
+    <button id="run-btn" class="primary">Run pipeline</button>
+  </div>
+</header>
+
+<div class="map" id="map"></div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--input)"></i> Inputs</span>
+  <span><i class="dot" style="background:var(--worker)"></i> Workers / processes</span>
+  <span><i class="dot" style="background:var(--store)"></i> Stores / indexes</span>
+  <span><i class="dot" style="background:var(--external)"></i> External source systems</span>
+  <span><i class="dot" style="background:var(--gate)"></i> Human gate</span>
+</div>
+
+<aside class="drawer" id="drawer">
+  <header>
+    <h1 id="drawer-title">—</h1>
+    <div class="actions"><button id="drawer-close">Close</button></div>
+  </header>
+  <div class="body" id="drawer-body"></div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const api = async (path, options = {}) => {
+  const res = await fetch(path, {
+    ...options,
+    headers: { 'content-type': 'application/json', ...(options.headers || {}) },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+};
+const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body || {}) });
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sum = (rows, key = 'n') => (rows || []).reduce((a, r) => a + Number(r[key] || 0), 0);
+
+let overview = {};
+
+function toast(message) {
+  const el = document.getElementById('toast');
+  el.textContent = message;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// Each node mirrors one box on the infrastructure map: what it is, and what it currently holds.
+const STAGES = [
+  { title: 'Source systems', nodes: [
+    { id: 'public_web', name: 'Public Web', theme: 't-input', lines: ['owned pages, competitor pages', 'RSS / news'],
+      badge: (o) => (o.sources.by_kind.find((k) => k.key === 'public_web') || {}).n || 0, view: 'sources:public_web' },
+    { id: 'files_media', name: 'Files + Media', theme: 't-input', lines: ['PDFs, images, exports', 'OCR / transcription offload'],
+      badge: (o) => (o.sources.by_kind.find((k) => k.key === 'files_media') || {}).n || 0, view: 'sources:files_media' },
+    { id: 'marketing_apis', name: 'Marketing APIs', theme: 't-external', lines: ['DataForSEO, GSC, GA4, Ads', 'GBP, PageSpeed, CrUX, CallRail'],
+      badge: (o) => (o.sources.by_kind.find((k) => k.key === 'marketing_api') || {}).n || 0, view: 'connectors' },
+    { id: 'client_systems', name: 'Client Systems', theme: 't-external', lines: ['Pipedrive, email, Drive', 'Tallyfy, ActiveCollab'],
+      badge: (o) => (o.sources.by_kind.find((k) => k.key === 'client_system') || {}).n || 0, view: 'sources:client_system' },
+    { id: 'internal_knowledge', name: 'Internal Knowledge', theme: 't-store', lines: ['SOPs, experiments', 'case studies, playbooks'],
+      badge: (o) => (o.sources.by_kind.find((k) => k.key === 'internal_knowledge') || {}).n || 0, view: 'sources:internal_knowledge' },
+  ]},
+  { title: 'Collection', nodes: [
+    { id: 'scraper', name: 'Scraper Worker', theme: 't-worker', lines: ['HTTP / browser fetch', 'policy + rate limits'],
+      badge: (o) => (o.collection.by_collector.find((k) => k.key === 'scraper') || {}).n || 0, view: 'runs:scraper' },
+    { id: 'file_importer', name: 'File Importer', theme: 't-worker', lines: ['PDF / text / table extract', 'media offload refs'],
+      badge: (o) => (o.collection.by_collector.find((k) => k.key === 'file_importer') || {}).n || 0, view: 'runs:file_importer' },
+    { id: 'api_connectors', name: 'API Connectors', theme: 't-worker', lines: ['scoped credentials', 'cost + freshness logs'],
+      badge: (o) => (o.collection.by_collector.find((k) => k.key === 'api_connector') || {}).n || 0, view: 'connectors' },
+    { id: 'client_indexer', name: 'Client Indexer', theme: 't-worker', lines: ['meeting-corpus style', 'source IDs, summaries'],
+      badge: (o) => (o.collection.by_collector.find((k) => k.key === 'client_indexer') || {}).n || 0, view: 'runs:client_indexer' },
+    { id: 'knowledge_import', name: 'Knowledge Import', theme: 't-worker', lines: ['SOPs, tests, docs', 'domain routing'],
+      badge: (o) => (o.collection.by_collector.find((k) => k.key === 'knowledge_import') || {}).n || 0, view: 'runs:knowledge_import' },
+  ]},
+  { title: 'Staging + curation', nodes: [
+    { id: 'staging', name: 'Staging Schemas', theme: 't-store', lines: ['raw artifacts, payloads', 'parser versions, cost, health'],
+      badge: (o) => o.staging.artifacts, view: 'staging' },
+    { id: 'curation', name: 'Curation Worker', theme: 't-worker', lines: ['dedupe, classify, trust, risk', 'route to domain, promotion audit'],
+      badge: (o) => sum(o.staging.candidates), view: 'candidates' },
+    { id: 'review', name: 'Human Review', theme: 't-gate', lines: ['accepted, added detail, declined', 'legacy, superseded, critical'],
+      badge: (o) => o.staging.review_open, alert: (o) => o.staging.review_critical > 0, view: 'review' },
+    { id: 'status', name: 'Status Worker', theme: 't-worker', lines: ['compare KB + evidence', 'contradicts / supersedes'],
+      badge: (o) => (o.staging.decisions.find((d) => d.key === 'superseded') || {}).n || 0, view: 'status' },
+    { id: 'trends_worker', name: 'Trends Worker', theme: 't-worker', lines: ['patterns, anomalies, correlation', 'suggest watch / experiment'],
+      badge: (o) => o.stores.trend_detections, view: 'trends' },
+  ]},
+  { title: 'Curated stores', nodes: [
+    { id: 'domain_kb', name: 'Domain KB Schemas', theme: 't-store', lines: ['SEO, Paid, Social, Local, AI, Web', 'current / legacy status'],
+      badge: (o) => o.stores.kb_entries, view: 'kb' },
+    { id: 'client_corpus', name: 'Client Corpus Index', theme: 't-store', lines: ['stored by client_id', 'source refs + snippets'],
+      badge: (o) => o.stores.client_corpus, view: 'corpus' },
+    { id: 'evidence', name: 'Evidence Ledger', theme: 't-store', lines: ['claims + citations', 'confidence + freshness'],
+      badge: (o) => o.stores.claims, alert: (o) => o.stores.uncited_claims > 0, view: 'evidence' },
+    { id: 'market', name: 'Market Activity Store', theme: 't-store', lines: ['neutral watched signals', 'append-only recorder'],
+      badge: (o) => o.stores.market_activity, view: 'market' },
+    { id: 'inquiry', name: 'Inquiry Store', theme: 't-store', lines: ['open questions, human + AI', 'potential experiments'],
+      badge: (o) => o.stores.inquiries_open, view: 'inquiries' },
+    { id: 'trends_schema', name: 'Trends Schema', theme: 't-store', lines: ['detections + sources', 'watchlist, review actions'],
+      badge: (o) => o.stores.watchlist, view: 'trends' },
+  ]},
+  { title: 'Reasoning + outputs', nodes: [
+    { id: 'reasoning', name: 'Reasoning Layer', theme: 't-worker', lines: ['joins KB + corpus + evidence', 'human-checkable output'],
+      badge: (o) => o.outputs.reasoning_runs, alert: (o) => o.outputs.unsupported_flagged > 0, view: 'ask' },
+    { id: 'workflows', name: 'Workflows', theme: 't-worker', lines: ['Tallyfy drafts, recommended actions', 'site-change records'],
+      badge: (o) => sum(o.outputs.workflow_drafts), view: 'workflows' },
+    { id: 'annotations', name: 'Annotation Ledger', theme: 't-store', lines: ['notes, rationale, approvals', 'evidence + platform review'],
+      badge: (o) => o.outputs.annotations, view: 'annotations' },
+    { id: 'reporting', name: 'Reporting', theme: 't-worker', lines: ['weekly market brief', 'source-backed, report-safe'],
+      badge: (o) => o.outputs.reports, view: 'reports' },
+    { id: 'strategy', name: 'Strategy + Sales', theme: 't-worker', lines: ['opportunity briefs', 'public-safe proof points'],
+      badge: (o) => o.outputs.briefs, view: 'briefs' },
+    { id: 'graph', name: 'Knowledge Graph', theme: 't-external', lines: ['federated search + links'],
+      badge: (o) => o.outputs.graph_nodes, view: 'graph' },
+  ]},
+];
+
+function renderMap() {
+  document.getElementById('map').innerHTML = STAGES.map((stage) => `
+    <section class="stage">
+      <h2>${esc(stage.title)}</h2>
+      ${stage.nodes.map((node) => {
+        let badge = '';
+        try { badge = String(node.badge(overview) ?? ''); } catch { badge = '—'; }
+        const alert = (() => { try { return node.alert && node.alert(overview); } catch { return false; } })();
+        return `<article class="node ${node.theme}" data-view="${node.view}">
+          <div class="name"><span>${esc(node.name)}</span><span class="badge ${alert ? 'alert' : ''}">${esc(badge)}</span></div>
+          <div class="lines">${node.lines.map((l) => `<div>${esc(l)}</div>`).join('')}</div>
+        </article>`;
+      }).join('')}
+    </section>`).join('');
+
+  document.querySelectorAll('.node').forEach((el) => {
+    el.addEventListener('click', () => openView(el.dataset.view));
+  });
+
+  const o = overview;
+  document.getElementById('summary').textContent =
+    `${o.staging.artifacts} artifacts · ${o.stores.kb_entries} current KB entries · ${o.stores.claims} claims / ${o.stores.citations} citations · ` +
+    `${o.staging.review_open} awaiting review (${o.staging.review_critical} critical) · ${o.audit.transitions} audited transitions`;
+}
+
+async function refresh() {
+  overview = await api('/api/overview');
+  renderMap();
+}
+
+// ── Drawer views ─────────────────────────────────────────────────────────────
+const drawer = document.getElementById('drawer');
+const drawerBody = document.getElementById('drawer-body');
+const setDrawer = (title, html) => {
+  document.getElementById('drawer-title').textContent = title;
+  drawerBody.innerHTML = html;
+  drawer.classList.add('open');
+};
+document.getElementById('drawer-close').onclick = () => drawer.classList.remove('open');
+
+const table = (rows, columns) => rows.length
+  ? `<table><thead><tr>${columns.map((c) => `<th>${esc(c[0])}</th>`).join('')}</tr></thead><tbody>` +
+    rows.map((r) => `<tr>${columns.map((c) => `<td>${esc(c[1](r))}</td>`).join('')}</tr>`).join('') + '</tbody></table>'
+  : '<div class="empty">Nothing here yet.</div>';
+
+async function openView(view) {
+  const [kind, arg] = view.split(':');
+  setDrawer('Loading…', '<div class="empty">Loading…</div>');
+
+  if (kind === 'sources' || kind === 'runs') {
+    const { sources } = await api('/api/sources');
+    const filtered = kind === 'sources' ? sources.filter((s) => s.kind === arg) : sources.filter((s) => s.collector === arg);
+    return setDrawer(kind === 'sources' ? `Sources — ${arg}` : `Collector — ${arg}`, table(filtered, [
+      ['Name', (s) => s.name], ['Collector', (s) => s.collector], ['Trust', (s) => Number(s.trust).toFixed(2)],
+      ['Rate/min', (s) => s.rate_limit_per_min], ['Enabled', (s) => (s.enabled ? 'yes' : 'no')],
+    ]));
+  }
+
+  if (kind === 'connectors') {
+    const { connectors } = await api('/api/sources');
+    return setDrawer('API connectors', table(connectors, [
+      ['Name', (c) => c.name], ['Vendor', (c) => c.vendor], ['Domain', (c) => c.domain || '—'],
+      ['Implemented', (c) => (c.implemented ? 'yes' : 'stub')],
+      ['Credentials', (c) => (c.credentials || []).join(', ') || 'none'],
+      ['Cost/call', (c) => `${c.costCentsPerCall}¢`],
+    ]));
+  }
+
+  if (kind === 'staging') {
+    const o = overview;
+    return setDrawer('Staging schemas', `
+      <div class="card"><h3>Artifacts</h3><div class="sub">${o.staging.artifacts} total · ${o.staging.artifacts_new} awaiting curation</div></div>
+      <div class="card"><h3>Candidate states</h3>${table(o.staging.candidates, [['State', (r) => r.key], ['Count', (r) => r.n]])}</div>
+      <div class="card"><h3>Source health</h3>${table(o.collection.health, [
+        ['Source', (r) => r.name], ['Window', (r) => r.window_start], ['OK', (r) => r.ok_count],
+        ['Fail', (r) => r.fail_count], ['Cost', (r) => `${r.cost_cents}¢`]])}</div>`);
+  }
+
+  if (kind === 'candidates') {
+    const o = overview;
+    return setDrawer('Curation worker', `
+      <div class="card"><h3>Candidates by state</h3>${table(o.staging.candidates, [['State', (r) => r.key], ['Count', (r) => r.n]])}</div>
+      <div class="card"><h3>Recent promotion audit</h3>${table(o.audit.recent, [
+        ['Object', (r) => `${r.object_type} ${r.object_id.slice(0, 12)}`], ['→', (r) => r.to_state],
+        ['Actor', (r) => r.actor], ['Reason', (r) => (r.reason || '').slice(0, 60)]])}</div>`);
+  }
+
+  if (kind === 'review') {
+    const { items } = await api('/api/review');
+    if (!items.length) return setDrawer('Human review', '<div class="empty">Queue is empty — nothing is waiting on a person.</div>');
+    return setDrawer(`Human review (${items.length})`, items.map((item) => `
+      <div class="card" data-review="${esc(item.id)}">
+        <h3>${esc(item.title || item.reason)}</h3>
+        <div class="sub">
+          <span class="pill ${item.severity === 'critical' ? 'critical' : ''}">${esc(item.severity)}</span>
+          <span class="pill">${esc(item.reason)}</span>
+          ${item.domain ? `<span class="pill">${esc(item.domain)}</span>` : ''}
+          ${item.kind ? `<span class="pill">${esc(item.kind)}</span>` : ''}
+          ${item.client_id ? `<span class="pill">client ${esc(item.client_id)}</span>` : ''}
+        </div>
+        ${item.body ? `<pre>${esc(String(item.body).slice(0, 700))}</pre>` : ''}
+        ${item.detail ? `<pre>${esc(item.detail)}</pre>` : ''}
+        <div class="row">
+          <button data-decide="accepted">Accept</button>
+          <button data-decide="accepted_with_detail">Accept + detail</button>
+          <button data-decide="declined">Decline</button>
+          <button data-decide="legacy">Legacy</button>
+          <button data-decide="critical">Escalate</button>
+        </div>
+      </div>`).join('') + `<div class="sub">Decisions are recorded against your principal and audited.</div>`);
+  }
+
+  if (kind === 'status') {
+    const { items } = await api('/api/review?severity=critical');
+    return setDrawer('Status worker', `
+      <div class="card"><h3>Contradictions & supersessions</h3>
+      <div class="sub">Raised by comparing current KB entries against each other and against evidence freshness.</div></div>
+      ${items.length ? items.map((i) => `<div class="card"><h3>${esc(i.reason)}</h3><pre>${esc(i.detail || '')}</pre></div>`).join('')
+        : '<div class="empty">No contradictions detected.</div>'}`);
+  }
+
+  if (kind === 'trends') {
+    const { detections, watchlist } = await api('/api/trends');
+    return setDrawer('Trends', `
+      <div class="card"><h3>Watchlist (${watchlist.length})</h3>${table(watchlist, [['Subject', (r) => r.subject], ['Added', (r) => r.added_at.slice(0, 10)]])}</div>
+      ${detections.map((d) => `<div class="card"><h3>${esc(d.summary)}</h3>
+        <div class="sub"><span class="pill">${esc(d.kind)}</span><span class="pill">${esc(d.action)}</span>
+        <span class="pill">${esc(d.state)}</span>score ${Number(d.score).toFixed(2)}</div></div>`).join('')
+        || '<div class="empty">No detections yet — run the pipeline.</div>'}`);
+  }
+
+  if (kind === 'kb') {
+    const { entries, stats } = await api('/api/kb');
+    return setDrawer(`Domain KB (${entries.length})`, `
+      <div class="card"><h3>By domain and status</h3>${table(stats, [['Domain', (r) => r.domain], ['Status', (r) => r.status], ['Entries', (r) => r.entries]])}</div>
+      ${entries.map((e) => `<div class="card"><h3>${esc(e.title)}</h3>
+        <div class="sub"><span class="pill">${esc(e.domain)}</span><span class="pill">${esc(e.type)}</span>
+        <span class="pill">${esc(e.status)}</span>v${e.version} · confidence ${Number(e.confidence).toFixed(2)}
+        · scope ${esc(e.client_scope)}</div>
+        <pre>${esc(String(e.body).slice(0, 600))}</pre></div>`).join('')}`);
+  }
+
+  if (kind === 'corpus') {
+    const clients = overview.stores.clients;
+    const { sources } = await api('/api/sources');
+    const clientIds = [...new Set(sources.filter((s) => s.client_id).map((s) => s.client_id))];
+    const blocks = [];
+    for (const clientId of clientIds) {
+      const { rows } = await api(`/api/corpus/${encodeURIComponent(clientId)}`);
+      blocks.push(`<div class="card"><h3>${esc(clientId)} (${rows.length})</h3>${table(rows, [
+        ['Kind', (r) => r.kind], ['Title', (r) => r.title], ['Snippet', (r) => String(r.snippet).slice(0, 90)]])}</div>`);
+    }
+    return setDrawer(`Client corpus — ${clients} client(s)`, blocks.join('') || '<div class="empty">No client records indexed.</div>');
+  }
+
+  if (kind === 'evidence') {
+    const o = overview;
+    const { entries } = await api('/api/kb');
+    const blocks = [];
+    for (const entry of entries.slice(0, 8)) {
+      const detail = await api(`/api/kb/${encodeURIComponent(entry.id)}`);
+      for (const claim of detail.evidence) {
+        blocks.push(`<div class="card"><h3>${esc(claim.statement)}</h3>
+          <div class="sub">confidence ${Number(claim.confidence).toFixed(2)} · evidence ${claim.freshness_days}d old</div>
+          ${table(claim.citations, [['Source', (c) => c.source_name || c.source_id], ['Locator', (c) => (c.locator || '').slice(0, 70)],
+            ['Quote', (c) => (c.quote || '').slice(0, 80)]])}</div>`);
+      }
+    }
+    return setDrawer('Evidence ledger', `
+      <div class="card"><h3>${o.stores.claims} claims · ${o.stores.citations} citations</h3>
+      <div class="sub">${o.stores.uncited_claims ? `⚠ ${o.stores.uncited_claims} uncited` : 'Every claim carries at least one citation.'}</div></div>
+      ${blocks.join('') || '<div class="empty">No claims recorded yet.</div>'}`);
+  }
+
+  if (kind === 'market') {
+    const { subjects, recent } = await api('/api/market');
+    return setDrawer('Market activity (append-only)', `
+      <div class="card"><h3>Watched series</h3>${table(subjects, [['Subject', (r) => r.subject], ['Signal', (r) => r.signal],
+        ['Obs', (r) => r.observations], ['Last seen', (r) => r.last_seen.slice(0, 10)]])}</div>
+      <div class="card"><h3>Latest observations</h3>${table(recent, [['When', (r) => r.observed_at.slice(0, 10)],
+        ['Subject', (r) => r.subject], ['Signal', (r) => r.signal], ['Value', (r) => `${r.value ?? '—'} ${r.unit || ''}`]])}</div>`);
+  }
+
+  if (kind === 'inquiries') {
+    const { open } = await api('/api/inquiries');
+    return setDrawer(`Inquiry store (${open.length})`, `
+      <div class="card"><h3>Ask a question</h3>
+        <input type="text" id="inq-input" placeholder="What should we find out?">
+        <div class="row"><button class="primary" id="inq-submit">Add to inquiry store</button></div></div>
+      ${table(open, [['Question', (r) => r.question], ['Origin', (r) => r.origin], ['Status', (r) => r.status]])}`);
+  }
+
+  if (kind === 'workflows') {
+    const { drafts } = await api('/api/workflows');
+    return setDrawer(`Workflows (${drafts.length})`, drafts.map((d) => `
+      <div class="card"><h3>${esc(d.title)}</h3>
+        <div class="sub"><span class="pill">${esc(d.kind)}</span><span class="pill">${esc(d.status)}</span></div>
+        <pre>${esc(String(d.body).slice(0, 500))}</pre>
+        ${d.status === 'draft' ? `<div class="row" data-draft="${esc(d.id)}">
+          <button data-approve="1">Approve</button><button data-reject="1">Reject</button></div>` : ''}
+      </div>`).join('') || '<div class="empty">No drafts. Ask a question with "draft actions" to create some.</div>');
+  }
+
+  if (kind === 'annotations') {
+    const o = overview;
+    return setDrawer('Annotation ledger', `<div class="card"><h3>${o.outputs.annotations} annotations</h3>
+      <div class="sub">Notes, rationale, approvals and platform reviews attached to objects without mutating them.
+      POST /api/annotations to add one.</div></div>`);
+  }
+
+  if (kind === 'reports') {
+    const { reports } = await api('/api/reports');
+    return setDrawer('Reporting', `
+      <div class="card"><h3>Generate</h3><div class="row">
+        <button id="brief-internal">Weekly brief (internal)</button>
+        <button id="brief-safe">Weekly brief (report-safe)</button></div></div>
+      ${table(reports, [['Kind', (r) => r.kind], ['Period', (r) => `${r.period_start.slice(0, 10)} → ${r.period_end.slice(0, 10)}`],
+        ['Safe', (r) => (r.safe ? 'yes' : 'no')], ['Created', (r) => r.created_at.slice(0, 16).replace('T', ' ')]])}`);
+  }
+
+  if (kind === 'briefs') {
+    return setDrawer('Strategy + sales', `
+      <div class="card"><h3>Opportunity brief</h3>
+        <div class="sub">Built only from cited, confident, fresh claims. Public-safe excludes client-scoped material.</div>
+        <div class="row"><button id="brief-internal-op">Internal</button><button id="brief-public">Public-safe</button></div></div>`);
+  }
+
+  if (kind === 'graph') {
+    const stats = await api('/api/graph');
+    return setDrawer('Knowledge graph', `
+      <div class="card"><h3>Federated search</h3>
+        <input type="text" id="graph-q" placeholder="Search across KB, claims, sources, trends…">
+        <div class="row"><button class="primary" id="graph-go">Search</button></div>
+        <div id="graph-results"></div></div>
+      <div class="card"><h3>Nodes</h3>${table(stats.nodes, [['Type', (r) => r.type], ['Count', (r) => r.n]])}</div>
+      <div class="card"><h3>Edges</h3>${table(stats.edges, [['Relation', (r) => r.rel], ['Count', (r) => r.n]])}</div>`);
+  }
+
+  if (kind === 'ask') return openAsk();
+  return setDrawer('Unknown view', '<div class="empty">No view for this node.</div>');
+}
+
+function openAsk() {
+  setDrawer('Reasoning layer', `
+    <div class="card"><h3>Ask</h3>
+      <input type="text" id="ask-input" placeholder="e.g. how should we handle core web vitals for local clients?">
+      <div class="row"><button class="primary" id="ask-go">Ask</button><button id="ask-draft">Ask + draft actions</button></div>
+      <div class="sub">Every point returned carries citations. Anything uncited is reported separately, never as an answer.</div>
+    </div>
+    <div id="ask-result"></div>`);
+  setTimeout(() => document.getElementById('ask-input').focus(), 50);
+}
+
+// ── Drawer interactions (delegated, so re-rendered content stays live) ────────
+drawerBody.addEventListener('click', async (event) => {
+  const button = event.target.closest('button');
+  if (!button) return;
+
+  try {
+    if (button.dataset.decide) {
+      const card = button.closest('[data-review]');
+      const decision = button.dataset.decide;
+      const body = { decision };
+      if (decision === 'accepted_with_detail') {
+        body.detail = prompt('What detail should be added to this entry?');
+        if (!body.detail) return;
+      }
+      if (decision === 'declined' || decision === 'critical') {
+        body.rationale = prompt('Rationale (recorded in the annotation and audit trail):') || null;
+      }
+      button.disabled = true;
+      await post(`/api/review/${encodeURIComponent(card.dataset.review)}/decide`, body);
+      toast(`Recorded: ${decision}`);
+      await refresh();
+      return openView('review');
+    }
+
+    if (button.dataset.approve || button.dataset.reject) {
+      const row = button.closest('[data-draft]');
+      const action = button.dataset.approve ? 'approve' : 'reject';
+      await post(`/api/workflows/${encodeURIComponent(row.dataset.draft)}/${action}`, { note: 'via dashboard' });
+      toast(`Draft ${action}d`);
+      await refresh();
+      return openView('workflows');
+    }
+
+    if (button.id === 'ask-go' || button.id === 'ask-draft') {
+      const question = document.getElementById('ask-input').value.trim();
+      if (!question) return;
+      button.disabled = true;
+      const result = await post('/api/ask', { question, draftActions: button.id === 'ask-draft' });
+      button.disabled = false;
+      document.getElementById('ask-result').innerHTML = `
+        <div class="card"><h3>${result.checkable ? 'Fully cited' : `⚠ ${result.unsupported.length} unsupported`}</h3>
+          <div class="sub">routed to ${esc(result.routed_domain)} · ${result.points.length} cited point(s)
+            ${result.drafts && result.drafts.length ? ` · ${result.drafts.length} draft action(s) created` : ''}</div>
+          <pre>${esc(result.rendered)}</pre></div>`;
+      await refresh();
+      return;
+    }
+
+    if (button.id === 'inq-submit') {
+      const question = document.getElementById('inq-input').value.trim();
+      if (!question) return;
+      await post('/api/inquiries', { question });
+      toast('Inquiry recorded');
+      await refresh();
+      return openView('inquiries');
+    }
+
+    if (button.id === 'graph-go') {
+      const q = document.getElementById('graph-q').value.trim();
+      const { results } = await api(`/api/graph?q=${encodeURIComponent(q)}`);
+      document.getElementById('graph-results').innerHTML = table(results, [
+        ['Type', (r) => r.type], ['Label', (r) => r.label], ['Score', (r) => r.score.toFixed(2)]]);
+      return;
+    }
+
+    if (button.id === 'brief-internal' || button.id === 'brief-safe') {
+      const result = await post('/api/reports/weekly', { safe: button.id === 'brief-safe' });
+      setDrawer('Weekly market brief', `<div class="card"><pre>${esc(result.body)}</pre></div>`);
+      return refresh();
+    }
+
+    if (button.id === 'brief-internal-op' || button.id === 'brief-public') {
+      const result = await post('/api/briefs', { publicSafe: button.id === 'brief-public' });
+      setDrawer('Opportunity brief', `<div class="card"><pre>${esc(result.body)}</pre></div>`);
+      return refresh();
+    }
+  } catch (err) {
+    toast(err.message);
+    button.disabled = false;
+  }
+});
+
+// ── Header actions ───────────────────────────────────────────────────────────
+document.getElementById('refresh-btn').onclick = () => refresh().then(() => toast('Refreshed'));
+document.getElementById('ask-btn').onclick = () => openAsk();
+document.getElementById('brief-btn').onclick = () => openView('reports');
+document.getElementById('run-btn').onclick = async (event) => {
+  event.target.disabled = true;
+  try {
+    const result = await post('/api/pipeline', {});
+    toast(`Pipeline: ${result.curation.promoted} promoted, ${result.curation.queued} queued for review`);
+    await refresh();
+  } catch (err) { toast(err.message); } finally { event.target.disabled = false; }
+};
+
+refresh().catch((err) => { document.getElementById('summary').textContent = `error: ${err.message}`; });
+</script>
+</body>
+</html>

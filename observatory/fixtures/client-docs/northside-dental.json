@@ -1,0 +1,39 @@
+[
+  {
+    "id": "mtg-2026-08-14",
+    "kind": "meeting",
+    "title": "Northside Dental — August strategy review",
+    "occurred_at": "2026-08-14T15:00:00.000Z",
+    "system": "meetings",
+    "participants": ["account lead", "client marketing manager"],
+    "source_ref": "meetings://northside-dental/2026-08-14",
+    "body": "Client wants more new-patient calls from the local pack rather than more traffic overall. Their GBP category was changed in July from 'Dentist' to 'Cosmetic dentist', which lines up with the local pack drop they noticed. Agreed next step is a profile audit before touching the site. They also asked whether AI overviews are taking clicks from their FAQ pages."
+  },
+  {
+    "id": "task-4411",
+    "kind": "task",
+    "title": "Northside Dental — GBP category audit",
+    "occurred_at": "2026-08-15T09:00:00.000Z",
+    "system": "activecollab",
+    "source_ref": "activecollab://tasks/4411",
+    "body": "Audit Google Business Profile categories and NAP consistency across top citation sources. Compare current primary category against the service terms the client actually wants calls for. Deliver findings as a short doc, not a slide deck."
+  },
+  {
+    "id": "icp-2026",
+    "kind": "icp",
+    "title": "Northside Dental — ideal patient profile",
+    "occurred_at": "2026-06-02T12:00:00.000Z",
+    "system": "pipedrive",
+    "source_ref": "pipedrive://notes/icp-2026",
+    "body": "Adults 30-55 within a 12 minute drive, searching for cosmetic procedures on mobile, usually in the evening. Price sensitivity is moderate; scheduling convenience matters more than cost in reported call reasons."
+  },
+  {
+    "id": "note-renewal",
+    "kind": "sales",
+    "title": "Northside Dental — renewal and pricing discussion",
+    "occurred_at": "2026-08-20T16:30:00.000Z",
+    "system": "pipedrive",
+    "source_ref": "pipedrive://notes/renewal-2026",
+    "body": "Confidential: client asked for a discount on the retainer at renewal and hinted at a competing agency proposal with a guaranteed lead volume. Do not repeat the guarantee framing back to them. This record should land in critical review rather than auto-promote."
+  }
+]
